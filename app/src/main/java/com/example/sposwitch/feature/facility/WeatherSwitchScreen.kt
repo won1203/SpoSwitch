@@ -3,16 +3,16 @@ package com.example.sposwitch.feature.facility
 import com.example.sposwitch.R
 import com.example.sposwitch.app.FeatureUiScope
 import com.example.sposwitch.data.mock.MockContent
-import com.example.sposwitch.model.WeatherScene
 import com.example.sposwitch.ui.component.facilityMap
 import com.example.sposwitch.ui.component.facilityRow
 
 internal object WeatherSwitchScreen {
     fun render(scope: FeatureUiScope) = with(scope) {
+        val weather = state.weather
         ui.note(
             content,
-            if (state.weatherScene == WeatherScene.RAIN) "비가 내려 실내 운동으로 바꿨어요." else "미세먼지가 나빠 실내 운동을 추천해요.",
-            state.weatherScene.icon,
+            weather?.let { "${it.condition} 예보가 있어 실내 운동으로 바꿨어요." } ?: "현재 날씨에 맞춰 실내 운동을 추천해요.",
+            weather?.icon ?: R.drawable.ic_rainy,
         )
         ui.gap(content, 20)
         ui.add(content, ui.text("장소를 바꿔도,\n운동은 계속", 28, bold = true))

@@ -1,19 +1,26 @@
 package com.example.sposwitch
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.view.Gravity
 import android.view.WindowManager
 import android.widget.LinearLayout
 import android.widget.ScrollView
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import com.example.sposwitch.app.AppRoute
 import com.example.sposwitch.app.AppState
 import com.example.sposwitch.app.FeatureUiScope
+import com.example.sposwitch.app.WeatherLoadState
+import com.example.sposwitch.data.location.DeviceLocationProvider
+import com.example.sposwitch.data.remote.WeatherApiClient
 import com.example.sposwitch.feature.facility.FacilityDetailScreen
 import com.example.sposwitch.feature.facility.FacilityListScreen
 import com.example.sposwitch.feature.facility.WeatherSwitchScreen
@@ -23,27 +30,41 @@ import com.example.sposwitch.feature.profile.ProfileScreen
 import com.example.sposwitch.feature.profile.ProfileSetupScreen
 import com.example.sposwitch.feature.weather.WeatherScreen
 import com.example.sposwitch.ui.theme.MockUi
-import com.google.android.material.dialog.MaterialAlertDialogBuilder
 
-/** Activity shell for the frontend-only mock. Feature packages own screen rendering. */
+/** Activity shell. Feature packages own screen rendering and the backend owns external API keys. */
 class MainActivity : AppCompatActivity() {
     private lateinit var ui: MockUi
     private lateinit var root: LinearLayout
     private lateinit var content: LinearLayout
     private lateinit var state: AppState
+    private lateinit var deviceLocationProvider: DeviceLocationProvider
+    private lateinit var weatherApiClient: WeatherApiClient
     private val history = mutableListOf<AppRoute>()
     private var route = AppRoute.HOME
+    private var weatherRequestId = 0
+    private val locationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions(),
+    ) { permissions ->
+        if (permissions.values.any { it }) {
+            requestDeviceLocation()
+        } else {
+            showWeatherError("현재 위치의 날씨를 표시하려면 위치 권한이 필요합니다.")
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         keepPrototypeVisible()
         ui = MockUi(this)
         state = AppState.from(savedInstanceState)
+        deviceLocationProvider = DeviceLocationProvider(this)
+        weatherApiClient = WeatherApiClient()
         route = AppRoute.fromKey(savedInstanceState?.getString("screen"))
         history.addAll(savedInstanceState?.getStringArrayList("history").orEmpty().map(AppRoute::fromKey))
         configureSystemBars()
         configureBackNavigation()
         render()
+        refreshWeather()
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -122,7 +143,7 @@ class MainActivity : AppCompatActivity() {
             navigateAction = ::navigate,
             renderAction = ::render,
             prescriptionAction = ::openPrescription,
-            locationAction = ::chooseLocation,
+            weatherRefreshAction = ::refreshWeather,
         )
         when (route) {
             AppRoute.HOME -> HomeScreen.render(scope)
@@ -161,7 +182,7 @@ class MainActivity : AppCompatActivity() {
             },
             LinearLayout.LayoutParams(0, -2, 1f),
         )
-        top.addView(ui.iconButton(R.drawable.ic_notifications, "알림 및 날씨 체험") {
+        top.addView(ui.iconButton(R.drawable.ic_notifications, "현재 날씨 보기") {
             navigate(AppRoute.WEATHER)
         })
         ui.add(root, top, 60)
@@ -205,21 +226,69 @@ class MainActivity : AppCompatActivity() {
         navigate(AppRoute.PRESCRIPTION)
     }
 
-    private fun chooseLocation() {
-        val locations = arrayOf(
-            "서울특별시 양천구 신월7동",
-            "서울특별시 양천구 신정3동",
-            "서울특별시 양천구 목5동",
-            "서울특별시 강서구 화곡1동",
-        )
-        MaterialAlertDialogBuilder(this)
-            .setTitle("현재 위치 선택 · 목업")
-            .setSingleChoiceItems(locations, locations.indexOf(state.location)) { dialog, which ->
-                state.location = locations[which]
-                dialog.dismiss()
-                root.post { render() }
-            }
-            .setNegativeButton("취소", null)
-            .show()
+    private fun refreshWeather() {
+        weatherRequestId++
+        deviceLocationProvider.cancel()
+        val hasFineLocation = ContextCompat.checkSelfPermission(
+            this,
+            Manifest.permission.ACCESS_FINE_LOCATION,
+        ) == PackageManager.PERMISSION_GRANTED
+        val hasCoarseLocation = ContextCompat.checkSelfPermission(
+            this,
+            Manifest.permission.ACCESS_COARSE_LOCATION,
+        ) == PackageManager.PERMISSION_GRANTED
+
+        state.weatherLoadState = WeatherLoadState.LOADING
+        state.weatherError = null
+        render()
+
+        if (hasFineLocation || hasCoarseLocation) {
+            requestDeviceLocation()
+        } else {
+            locationPermissionLauncher.launch(
+                arrayOf(
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION,
+                ),
+            )
+        }
+    }
+
+    private fun requestDeviceLocation() {
+        val requestId = ++weatherRequestId
+        deviceLocationProvider.getCurrentLocation { locationResult ->
+            if (requestId != weatherRequestId) return@getCurrentLocation
+            locationResult.fold(
+                onSuccess = { location ->
+                    weatherApiClient.getCurrentWeather(location.latitude, location.longitude) { weatherResult ->
+                        if (requestId != weatherRequestId) return@getCurrentWeather
+                        weatherResult.fold(
+                            onSuccess = { weather ->
+                                state.weather = weather
+                                state.location = weather.location
+                                state.weatherLoadState = WeatherLoadState.READY
+                                state.weatherError = null
+                                render()
+                            },
+                            onFailure = { showWeatherError(it.message ?: "날씨 정보를 불러오지 못했습니다.") },
+                        )
+                    }
+                },
+                onFailure = { showWeatherError(it.message ?: "현재 위치를 확인하지 못했습니다.") },
+            )
+        }
+    }
+
+    private fun showWeatherError(message: String) {
+        state.weatherLoadState = WeatherLoadState.ERROR
+        state.weatherError = message
+        render()
+    }
+
+    override fun onDestroy() {
+        weatherRequestId++
+        deviceLocationProvider.cancel()
+        weatherApiClient.close()
+        super.onDestroy()
     }
 }

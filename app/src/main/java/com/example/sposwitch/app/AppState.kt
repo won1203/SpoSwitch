@@ -1,11 +1,20 @@
 package com.example.sposwitch.app
 
 import android.os.Bundle
-import com.example.sposwitch.model.WeatherScene
+import com.example.sposwitch.model.CurrentWeather
+
+internal enum class WeatherLoadState {
+    IDLE,
+    LOADING,
+    READY,
+    ERROR,
+}
 
 /** Mutable prototype state shared by feature screens. */
 internal data class AppState(
-    var weatherScene: WeatherScene = WeatherScene.SUNNY,
+    var weather: CurrentWeather? = null,
+    var weatherLoadState: WeatherLoadState = WeatherLoadState.IDLE,
+    var weatherError: String? = null,
     var facilityFilter: String = "전체",
     var gender: String = "여성",
     var age: String = "30대",
@@ -13,7 +22,7 @@ internal data class AppState(
     var weightKg: String = "60",
     var goal: String = "근력 및 근육 강화",
     var profileComplete: Boolean = false,
-    var location: String = "서울특별시 양천구 신월7동",
+    var location: String = "현재 위치 확인 중",
     var notificationsEnabled: Boolean = true,
     var profileStep: Int = 0,
     var selectedFacility: Int = 0,
@@ -22,10 +31,9 @@ internal data class AppState(
     var prescriptionComplete: Boolean = false,
     var mapVisible: Boolean = true,
 ) {
-    val recommendsIndoor: Boolean get() = weatherScene != WeatherScene.SUNNY
+    val recommendsIndoor: Boolean get() = weather?.recommendsIndoor == true
 
     fun saveTo(outState: Bundle) = with(outState) {
-        putString("scene", weatherScene.name)
         putString("filter", facilityFilter)
         putString("gender", gender)
         putString("age", age)
@@ -47,7 +55,6 @@ internal data class AppState(
         fun from(bundle: Bundle?): AppState {
             if (bundle == null) return AppState()
             return AppState(
-                weatherScene = WeatherScene.valueOf(bundle.getString("scene", WeatherScene.SUNNY.name)),
                 facilityFilter = bundle.getString("filter", "전체"),
                 gender = bundle.getString("gender", "여성"),
                 age = bundle.getString("age", "30대"),
@@ -55,7 +62,7 @@ internal data class AppState(
                 weightKg = bundle.getString("weightKg", "60"),
                 goal = bundle.getString("goal", "근력 및 근육 강화"),
                 profileComplete = bundle.getBoolean("profileComplete"),
-                location = bundle.getString("location", "서울특별시 양천구 신월7동"),
+                location = bundle.getString("location", "현재 위치 확인 중"),
                 notificationsEnabled = bundle.getBoolean("notificationsEnabled", true),
                 profileStep = bundle.getInt("step"),
                 selectedFacility = bundle.getInt("facility"),

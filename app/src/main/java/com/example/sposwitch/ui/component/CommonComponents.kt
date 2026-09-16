@@ -4,11 +4,12 @@ import android.view.Gravity
 import android.widget.FrameLayout
 import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
+import android.widget.ProgressBar
 import com.example.sposwitch.R
 import com.example.sposwitch.app.AppRoute
 import com.example.sposwitch.app.FeatureUiScope
+import com.example.sposwitch.app.WeatherLoadState
 import com.example.sposwitch.data.mock.MockContent
-import com.example.sposwitch.model.WeatherScene
 import com.google.android.material.materialswitch.MaterialSwitch
 
 internal fun FeatureUiScope.weatherCard() {
@@ -19,27 +20,53 @@ internal fun FeatureUiScope.weatherCard() {
     val header = ui.row()
     header.addView(ui.icon(R.drawable.ic_location_on, size = 20))
     header.addView(ui.text(state.location, 15), LinearLayout.LayoutParams(0, -2, 1f).apply { leftMargin = ui.dp(6) })
-    header.addView(ui.icon(R.drawable.ic_expand_more, size = 20))
-    ui.click(header, "위치 선택: ${state.location}") { chooseLocation() }
+    header.addView(ui.icon(R.drawable.ic_near_me, size = 20))
+    ui.click(header, "현재 위치와 날씨 새로고침") { refreshWeather() }
     ui.add(box, header, 48)
 
-    val body = ui.row()
-    val scene = state.weatherScene
-    body.addView(ui.icon(scene.icon, if (scene == WeatherScene.SUNNY) 0xFFFFBE2C.toInt() else ui.green, 54))
-    val details = ui.column()
-    val temperature = ui.row()
-    temperature.addView(ui.text(scene.temperature, 42, bold = true))
-    temperature.addView(ui.text(scene.label, 19, bold = true), LinearLayout.LayoutParams(-2, -2).apply { leftMargin = ui.dp(10) })
-    ui.add(details, temperature)
-    val airQuality = if (activity.resources.configuration.screenWidthDp < 360 || activity.resources.configuration.fontScale > 1.15f) {
-        "미세먼지 ${scene.airQuality}\n초미세먼지 ${scene.airQuality}"
-    } else {
-        "미세먼지 ${scene.airQuality} · 초미세먼지 ${scene.airQuality}"
+    when (state.weatherLoadState) {
+        WeatherLoadState.READY -> {
+            val weather = state.weather
+            if (weather != null) {
+                val body = ui.row()
+                val iconColor = if (weather.conditionCode == "CLEAR") 0xFFFFBE2C.toInt() else ui.green
+                body.addView(ui.icon(weather.icon, iconColor, 54))
+                val details = ui.column()
+                val temperature = ui.row()
+                temperature.addView(ui.text(weather.temperatureText, 42, bold = true))
+                temperature.addView(
+                    ui.text(weather.condition, 19, bold = true),
+                    LinearLayout.LayoutParams(-2, -2).apply { leftMargin = ui.dp(10) },
+                )
+                ui.add(details, temperature)
+                val currentDetails = if (
+                    activity.resources.configuration.screenWidthDp < 360 ||
+                    activity.resources.configuration.fontScale > 1.15f
+                ) {
+                    "습도 ${weather.humidityPercent}%\n풍속 ${weather.windSpeedText}"
+                } else {
+                    "습도 ${weather.humidityPercent}% · 풍속 ${weather.windSpeedText}"
+                }
+                ui.add(details, ui.text(currentDetails, 12), top = 5)
+                body.addView(details, LinearLayout.LayoutParams(0, -2, 1f).apply { leftMargin = ui.dp(12) })
+                ui.add(box, body, top = 2)
+            }
+        }
+        WeatherLoadState.ERROR -> {
+            ui.add(box, ui.text(state.weatherError ?: "날씨 정보를 불러오지 못했습니다.", 14, ui.muted), top = 8)
+            ui.add(box, ui.button("다시 시도", false, R.drawable.ic_near_me) { refreshWeather() }, top = 12)
+        }
+        WeatherLoadState.IDLE, WeatherLoadState.LOADING -> {
+            val loading = ui.row().apply {
+                addView(ProgressBar(activity).apply { contentDescription = "현재 위치와 날씨 불러오는 중" })
+                addView(
+                    ui.text("현재 위치와 날씨를 불러오는 중이에요.", 14, ui.muted),
+                    LinearLayout.LayoutParams(0, -2, 1f).apply { leftMargin = ui.dp(12) },
+                )
+            }
+            ui.add(box, loading, top = 8)
+        }
     }
-    ui.add(details, ui.text(airQuality, 12), top = 5)
-    body.addView(details, LinearLayout.LayoutParams(0, -2, 1f).apply { leftMargin = ui.dp(12) })
-    ui.add(box, body, top = 2)
-    ui.add(box, ui.text("위치·기상 공공데이터 · 실시간 연동 예정", 10, ui.muted), top = 9)
     ui.add(content, box)
 }
 

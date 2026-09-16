@@ -5,7 +5,7 @@ internal enum class AppRoute(val key: String, val title: String) {
     PRESCRIPTION("prescription", "맞춤 운동 처방"),
     FACILITIES("facilities", "운동 시설"),
     PROFILE("profile", "내 상태"),
-    WEATHER("notifications", "날씨 체험"),
+    WEATHER("weather", "현재 날씨"),
     WEATHER_SWITCH("switching", "오늘의 스위치"),
     FACILITY_DETAIL("facility", "시설 상세"),
     PROFILE_SETUP("profile_setup", "내 상태 입력");

@@ -13,12 +13,12 @@ internal class FeatureUiScope(
     private val navigateAction: (AppRoute, Boolean) -> Unit,
     private val renderAction: () -> Unit,
     private val prescriptionAction: (Boolean) -> Unit,
-    private val locationAction: () -> Unit,
+    private val weatherRefreshAction: () -> Unit,
 ) {
     val recommendsIndoor: Boolean get() = state.recommendsIndoor
 
     fun navigate(route: AppRoute, asTab: Boolean = false) = navigateAction(route, asTab)
     fun rerender() = renderAction()
     fun openPrescription(indoor: Boolean) = prescriptionAction(indoor)
-    fun chooseLocation() = locationAction()
+    fun refreshWeather() = weatherRefreshAction()
 }

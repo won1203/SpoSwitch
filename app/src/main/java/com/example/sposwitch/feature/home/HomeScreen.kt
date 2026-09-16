@@ -55,7 +55,7 @@ internal object HomeScreen {
         ui.note(
             content,
             if (recommendsIndoor) "현재 날씨에 맞춰 실내 시설을 추천했어요." else "현재 날씨에 맞춰 야외 시설을 추천했어요.",
-            state.weatherScene.icon,
+            state.weather?.icon ?: R.drawable.ic_sunny,
         ) { navigate(AppRoute.WEATHER) }
     }
 }
