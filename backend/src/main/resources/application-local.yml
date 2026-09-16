@@ -1,0 +1,7 @@
+# IntelliJ 실행 환경변수에 SPRING_PROFILES_ACTIVE=local을 지정합니다.
+# DB_URL, DB_USERNAME, DB_PASSWORD도 실행 환경변수로 설정합니다.
+spring:
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
