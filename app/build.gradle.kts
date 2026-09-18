@@ -4,7 +4,8 @@ plugins {
 }
 
 val backendBaseUrl = providers.gradleProperty("SPO_SWITCH_API_BASE_URL")
-    .orElse("http://10.0.2.2:8080")
+    // Local development: adb reverse tcp:8080 tcp:8080 (device and emulator).
+    .orElse("http://127.0.0.1:8080")
     .get()
 
 android {
