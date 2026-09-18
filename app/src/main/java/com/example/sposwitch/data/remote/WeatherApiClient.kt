@@ -5,6 +5,7 @@ import android.os.Looper
 import com.example.sposwitch.BuildConfig
 import com.example.sposwitch.model.CurrentWeather
 import java.net.HttpURLConnection
+import java.io.IOException
 import java.net.URL
 import java.util.concurrent.Executors
 import org.json.JSONObject
@@ -45,7 +46,13 @@ internal class WeatherApiClient(
                     connection.disconnect()
                 }
             }
-            mainHandler.post { callback(result) }
+            val displayResult = result.recoverCatching { error ->
+                if (error is IOException) {
+                    throw IllegalStateException("서버에 연결할 수 없습니다. 연결 상태를 확인한 뒤 다시 시도해 주세요.", error)
+                }
+                throw error
+            }
+            mainHandler.post { callback(displayResult) }
         }
     }
 
