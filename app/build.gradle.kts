@@ -3,10 +3,16 @@ plugins {
     alias(libs.plugins.kotlin.android)
 }
 
-val backendBaseUrl = providers.gradleProperty("SPO_SWITCH_API_BASE_URL")
-    // Local development: adb reverse tcp:8080 tcp:8080 (device and emulator).
+    val debugBackendBaseUrl = providers.gradleProperty("SPO_SWITCH_API_BASE_URL")
     .orElse("http://127.0.0.1:8080")
     .get()
+val releaseBackendBaseUrl = providers.gradleProperty("SPO_SWITCH_RELEASE_API_BASE_URL")
+    .orElse(providers.environmentVariable("SPO_SWITCH_RELEASE_API_BASE_URL"))
+    .orElse("")
+    .get()
+
+fun buildConfigString(value: String) = "\"" + value.replace("\\", "\\\\")
+    .replace("\"", "\\\"").replace("\r", "\\r").replace("\n", "\\n") + "\""
 
 android {
     namespace = "com.example.sposwitch"
@@ -20,15 +26,16 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        buildConfigField("String", "BACKEND_BASE_URL", "\"$backendBaseUrl\"")
         manifestPlaceholders["usesCleartextTraffic"] = "false"
     }
 
     buildTypes {
         debug {
+            buildConfigField("String", "BACKEND_BASE_URL", buildConfigString(debugBackendBaseUrl))
             manifestPlaceholders["usesCleartextTraffic"] = "true"
         }
         release {
+            buildConfigField("String", "BACKEND_BASE_URL", buildConfigString(releaseBackendBaseUrl))
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -61,3 +68,5 @@ dependencies {
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
 }
+
+apply(from = rootProject.file("scripts/local-android.gradle"))
