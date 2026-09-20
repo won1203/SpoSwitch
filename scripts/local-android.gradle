@@ -1,0 +1,126 @@
+import groovy.json.JsonSlurper
+import java.util.concurrent.TimeUnit
+
+// Invoked automatically by the ordinary Android Studio app Run/Debug build.
+def adbExecutable = androidComponents.sdkComponents.adb
+def debugUrl = providers.gradleProperty('SPO_SWITCH_API_BASE_URL').orElse('http://127.0.0.1:8080')
+def backendPort = providers.gradleProperty('localBackendPort').orElse('8080')
+def fromIde = providers.gradleProperty('android.injected.invoked.from.ide').orElse('false')
+def ideSerial = providers.gradleProperty('android.injected.device.serial')
+
+def adb = { List arguments ->
+    def process = new ProcessBuilder(([adbExecutable.get().asFile.absolutePath] + arguments).collect { it.toString() })
+        .redirectErrorStream(true).start()
+    def output = new StringBuffer()
+    def reader = process.consumeProcessOutputStream(output)
+    if (!process.waitFor(10, TimeUnit.SECONDS)) {
+        process.destroyForcibly()
+        reader.join(1000)
+        throw new GradleException('Android device connection timed out. Reconnect the device and press Run again.')
+    }
+    reader.join(1000)
+    if (process.exitValue() != 0) {
+        throw new GradleException("adb failed: ${arguments.join(' ')}\n${output}")
+    }
+    output.toString().trim()
+}
+
+def autoConnect = tasks.register('connectDebugBackend') {
+    group = 'local development'
+    description = 'Automatically forwards connected debug devices to the local Spring server after a normal app build.'
+    notCompatibleWithConfigurationCache('Queries live adb devices on each Run, including up-to-date builds.')
+    // No outputs: this must run even when the APK itself is up to date.
+    onlyIf { debugUrl.get().replaceAll('/+$', '') == 'http://127.0.0.1:8080' }
+    doLast {
+        def port = backendPort.get()
+        if (!(port ==~ /\d{1,5}/) || port.toInteger() < 1 || port.toInteger() > 65535) {
+            throw new GradleException('localBackendPort must be between 1 and 65535.')
+        }
+        def listDevices = {
+            adb(['devices']).readLines().collect { it.trim().tokenize() }
+                .findAll { it.size() >= 2 && it[1] in ['device', 'offline', 'unauthorized'] }
+        }
+        def listed = listDevices()
+        def target = ideSerial.orNull
+        def ready = { rows -> target ? rows.any { it[0] == target && it[1] == 'device' } : rows.any { it[1] == 'device' } }
+        // Android Studio can boot the selected emulator while Gradle builds the APK.
+        if (fromIde.get() == 'true' && !ready(listed)) {
+            logger.lifecycle('Waiting for the Android Studio device to connect...')
+            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(45)
+            while (!ready(listed) && System.nanoTime() < deadline) {
+                Thread.sleep(1000)
+                listed = listDevices()
+            }
+        }
+        if (fromIde.get() == 'true' && !ready(listed)) {
+            throw new GradleException('The selected device is not ready. Start the emulator or authorize USB/wireless debugging, then press Run again.')
+        }
+        def connected = listed.findAll { it[1] == 'device' }
+        if (connected.isEmpty()) {
+            logger.lifecycle('No connected device: APK built without local forwarding. Android Studio Run will set it up when a device is connected.')
+            return
+        }
+        listed.findAll { it[1] != 'device' }.each {
+            logger.warn("Local server connection skipped for ${it[0]} (${it[1]}).")
+        }
+        connected.each { row ->
+            def serial = row[0]
+            adb(['-s', serial, 'reverse', 'tcp:8080', "tcp:${port}"])
+            def mappings = adb(['-s', serial, 'reverse', '--list']).readLines()*.tokenize()
+            if (!mappings.any { it.size() >= 3 && it[-2] == 'tcp:8080' && it[-1] == "tcp:${port}" }) {
+                throw new GradleException("Local server forwarding failed on ${serial}. Reconnect and press Run again.")
+            }
+            logger.lifecycle("${serial}: local Spring connection ready (device :8080 -> PC :${port}).")
+        }
+        // Server downtime must not prevent compiling or installing a debug APK.
+        // The app can retry after Spring starts; the tunnel is already installed.
+        def connection = (HttpURLConnection) new URL("http://127.0.0.1:${port}/actuator/health").openConnection()
+        connection.connectTimeout = 2000
+        connection.readTimeout = 2000
+        try {
+            if (connection.responseCode != 200 ||
+                connection.inputStream.withCloseable { new JsonSlurper().parse(it, 'UTF-8').status } != 'UP') {
+                logger.warn('Spring is not healthy yet. Check the IntelliJ server log, then retry in the app.')
+            } else {
+                logger.lifecycle('Local Spring health: UP.')
+            }
+        } catch (Exception ignored) {
+            logger.warn('Spring is not reachable yet. Start it in IntelliJ, then retry in the app.')
+        } finally {
+            connection.disconnect()
+        }
+    }
+}
+
+tasks.matching { it.name == 'assembleDebug' }.configureEach {
+    finalizedBy(autoConnect)
+}
+tasks.matching { it.name == 'installDebug' }.configureEach {
+    dependsOn('assembleDebug')
+    mustRunAfter(autoConnect)
+}
+
+def releaseUrl = providers.gradleProperty('SPO_SWITCH_RELEASE_API_BASE_URL')
+    .orElse(providers.environmentVariable('SPO_SWITCH_RELEASE_API_BASE_URL')).orElse('')
+def validateRelease = tasks.register('validateReleaseBackend') {
+    group = 'verification'
+    description = 'Rejects missing, non-HTTPS and local development URLs in release builds.'
+    doLast {
+        URI uri
+        try { uri = new URI(releaseUrl.get()) } catch (URISyntaxException ignored) { uri = null }
+        def hostname = uri?.host?.toLowerCase(Locale.ROOT)
+        def local = !hostname || hostname == 'localhost' || hostname.endsWith('.localhost') ||
+            hostname.endsWith('.local') || hostname == '[::1]' || hostname == '[::]' ||
+            hostname.startsWith('[fc') || hostname.startsWith('[fd') || hostname.startsWith('[fe80:') ||
+            hostname == '0.0.0.0' || hostname.startsWith('127.') || hostname.startsWith('10.') ||
+            hostname.startsWith('192.168.') || hostname.startsWith('169.254.') ||
+            (hostname ==~ /172\.(1[6-9]|2\d|3[01])\..*/)
+        if (uri?.scheme != 'https' || local || uri?.userInfo || uri?.query || uri?.fragment) {
+            throw new GradleException('Release requires SPO_SWITCH_RELEASE_API_BASE_URL set to your deployed public HTTPS API URL ' +
+                '(Gradle property or environment variable). Local development URLs cannot be shipped.')
+        }
+    }
+}
+tasks.matching { it.name == 'preReleaseBuild' }.configureEach {
+    dependsOn(validateRelease)
+}
