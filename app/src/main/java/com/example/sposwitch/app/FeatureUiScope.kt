@@ -2,6 +2,7 @@ package com.example.sposwitch.app
 
 import androidx.appcompat.app.AppCompatActivity
 import android.widget.LinearLayout
+import com.example.sposwitch.model.ExerciseEnvironment
 import com.example.sposwitch.ui.theme.MockUi
 
 /** Dependencies and navigation callbacks available to a feature screen renderer. */
@@ -12,13 +13,13 @@ internal class FeatureUiScope(
     val state: AppState,
     private val navigateAction: (AppRoute, Boolean) -> Unit,
     private val renderAction: () -> Unit,
-    private val prescriptionAction: (Boolean) -> Unit,
+    private val prescriptionAction: (ExerciseEnvironment) -> Unit,
     private val weatherRefreshAction: () -> Unit,
+    private val profileSaveAction: () -> Unit,
 ) {
-    val recommendsIndoor: Boolean get() = state.recommendsIndoor
-
     fun navigate(route: AppRoute, asTab: Boolean = false) = navigateAction(route, asTab)
     fun rerender() = renderAction()
-    fun openPrescription(indoor: Boolean) = prescriptionAction(indoor)
+    fun openPrescription(environment: ExerciseEnvironment) = prescriptionAction(environment)
     fun refreshWeather() = weatherRefreshAction()
+    fun saveProfile() = profileSaveAction()
 }

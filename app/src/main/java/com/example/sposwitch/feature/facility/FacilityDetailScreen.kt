@@ -3,6 +3,7 @@ package com.example.sposwitch.feature.facility
 import com.example.sposwitch.R
 import com.example.sposwitch.app.FeatureUiScope
 import com.example.sposwitch.data.mock.MockContent
+import com.example.sposwitch.model.ExerciseEnvironment
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 
 internal object FacilityDetailScreen {
@@ -27,7 +28,9 @@ internal object FacilityDetailScreen {
                 .show()
         }, top = 24)
         ui.add(content, ui.button("이곳에서 할 운동 처방 보기", false, R.drawable.ic_play_arrow) {
-            openPrescription(facility.indoor)
+            openPrescription(
+                if (facility.indoor) ExerciseEnvironment.INDOOR_FACILITY else ExerciseEnvironment.OUTDOOR,
+            )
         }, top = 12)
     }
 }

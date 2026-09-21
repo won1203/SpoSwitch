@@ -7,12 +7,16 @@ import com.example.sposwitch.R
 import com.example.sposwitch.app.AppRoute
 import com.example.sposwitch.app.FeatureUiScope
 import com.example.sposwitch.data.mock.MockContent
+import com.example.sposwitch.model.ExerciseEnvironment
+import com.example.sposwitch.model.ExerciseEquipment
+import com.example.sposwitch.model.ExercisePlacePreference
 
 internal object PrescriptionScreen {
     fun render(scope: FeatureUiScope) = with(scope) {
-        if (!state.profileComplete) {
+        val profile = state.profile
+        if (!profile.isComplete) {
             ui.add(content, ui.text("아직 맞춤 처방을\n만들기 전이에요", 28, bold = true))
-            ui.add(content, ui.text("성별·연령대, 신체 정보와 운동 목표를 입력해 주세요.", 14, ui.muted), top = 12)
+            ui.add(content, ui.text("연령대, 체력 수준, 운동 목적과 운동 환경을 선택해 주세요.", 14, ui.muted), top = 12)
             ui.add(content, ui.button("내 상태 입력하기") {
                 state.profileStep = 0
                 navigate(AppRoute.PROFILE_SETUP)
@@ -20,12 +24,25 @@ internal object PrescriptionScreen {
             return@with
         }
 
-        ui.add(content, ui.image(if (state.prescriptionIndoor) R.drawable.indoor_hero else R.drawable.track_hero), 200)
+        val environment = state.prescriptionEnvironment
+        val equipment = if (
+            environment == ExerciseEnvironment.HOME &&
+            profile.placePreference == ExercisePlacePreference.HOME
+        ) {
+            profile.equipment
+        } else {
+            ExerciseEquipment.NONE
+        }
+        ui.add(content, ui.image(if (environment.isIndoor) R.drawable.indoor_hero else R.drawable.track_hero), 200)
         ui.gap(content, 20)
         ui.add(content, ui.text("국민체력100 운동처방 데이터 · 연동 화면 예시", 12, ui.accent, true))
-        ui.add(content, ui.text(MockContent.exercise(state.prescriptionIndoor, state.goal), 27, bold = true), top = 8)
-        ui.add(content, ui.text("${MockContent.fitnessFactors(state.goal)} · 20분 · ${state.gender} ${state.age} 맞춤", 14, ui.muted), top = 10)
-        ui.add(content, ui.text("입력 정보 ${state.heightCm}cm · ${state.weightKg}kg", 12, ui.muted), top = 7)
+        ui.add(content, ui.text(MockContent.exercise(environment, profile.goal, equipment), 27, bold = true), top = 8)
+        ui.add(content, ui.text("${MockContent.fitnessFactors(profile.goal)} · 20분 · ${profile.age} · ${profile.fitnessLevel}", 14, ui.muted), top = 10)
+        val exerciseEnvironment = when (environment) {
+            ExerciseEnvironment.HOME -> "집 · ${equipment.label} 기준"
+            else -> "${environment.label} 기준"
+        }
+        ui.add(content, ui.text(exerciseEnvironment, 12, ui.muted), top = 7)
         ui.gap(content, 20)
 
         if (state.prescriptionComplete) {
@@ -68,13 +85,17 @@ internal object PrescriptionScreen {
         }, top = 20)
     }
 
-    private fun FeatureUiScope.prescriptionSteps(): List<Pair<String, String>> = when (state.goal) {
+    private fun FeatureUiScope.prescriptionSteps(): List<Pair<String, String>> = when (state.profile.goal) {
         "근력 및 근육 강화" -> listOf("관절 가동성 준비" to "4분", "스쿼트와 런지" to "12분", "하체 스트레칭" to "4분")
         "체지방 감소" -> listOf("동적 준비 운동" to "4분", "유산소 인터벌" to "12분", "호흡 정리" to "4분")
         "유연성 및 자세 개선" -> listOf("목과 어깨 이완" to "5분", "전신 가동성 운동" to "10분", "천천히 호흡" to "5분")
         else -> listOf(
             "가볍게 몸 풀기" to "5분",
-            (if (state.prescriptionIndoor) "편안한 속도로 페달 밟기" else "편안한 속도로 달리기") to "10분",
+            when (state.prescriptionEnvironment) {
+                ExerciseEnvironment.HOME -> "제자리 걷기와 맨몸 운동"
+                ExerciseEnvironment.INDOOR_FACILITY -> "편안한 속도로 페달 밟기"
+                ExerciseEnvironment.OUTDOOR -> "편안한 속도로 달리기"
+            } to "10분",
             "천천히 마무리" to "5분",
         )
     }

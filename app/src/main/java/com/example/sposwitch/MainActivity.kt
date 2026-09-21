@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.os.SystemClock
 import android.view.Gravity
 import android.view.WindowManager
 import android.widget.LinearLayout
@@ -19,6 +20,7 @@ import com.example.sposwitch.app.AppRoute
 import com.example.sposwitch.app.AppState
 import com.example.sposwitch.app.FeatureUiScope
 import com.example.sposwitch.app.WeatherLoadState
+import com.example.sposwitch.data.local.UserProfileRepository
 import com.example.sposwitch.data.location.DeviceLocationProvider
 import com.example.sposwitch.data.remote.WeatherApiClient
 import com.example.sposwitch.feature.facility.FacilityDetailScreen
@@ -29,6 +31,7 @@ import com.example.sposwitch.feature.prescription.PrescriptionScreen
 import com.example.sposwitch.feature.profile.ProfileScreen
 import com.example.sposwitch.feature.profile.ProfileSetupScreen
 import com.example.sposwitch.feature.weather.WeatherScreen
+import com.example.sposwitch.model.ExerciseEnvironment
 import com.example.sposwitch.ui.theme.MockUi
 
 /** Activity shell. Feature packages own screen rendering and the backend owns external API keys. */
@@ -39,9 +42,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var state: AppState
     private lateinit var deviceLocationProvider: DeviceLocationProvider
     private lateinit var weatherApiClient: WeatherApiClient
+    private lateinit var userProfileRepository: UserProfileRepository
     private val history = mutableListOf<AppRoute>()
     private var route = AppRoute.HOME
     private var weatherRequestId = 0
+    private var lastWeatherRefreshAt = 0L
     private val locationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
     ) { permissions ->
@@ -56,7 +61,8 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         keepPrototypeVisible()
         ui = MockUi(this)
-        state = AppState.from(savedInstanceState)
+        userProfileRepository = UserProfileRepository(this)
+        state = AppState.from(savedInstanceState, userProfileRepository.load())
         deviceLocationProvider = DeviceLocationProvider(this)
         weatherApiClient = WeatherApiClient()
         route = AppRoute.fromKey(savedInstanceState?.getString("screen"))
@@ -64,7 +70,13 @@ class MainActivity : AppCompatActivity() {
         configureSystemBars()
         configureBackNavigation()
         render()
-        refreshWeather()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (SystemClock.elapsedRealtime() - lastWeatherRefreshAt >= WEATHER_REFRESH_INTERVAL_MS) {
+            refreshWeather()
+        }
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -144,6 +156,7 @@ class MainActivity : AppCompatActivity() {
             renderAction = ::render,
             prescriptionAction = ::openPrescription,
             weatherRefreshAction = ::refreshWeather,
+            profileSaveAction = ::saveProfile,
         )
         when (route) {
             AppRoute.HOME -> HomeScreen.render(scope)
@@ -214,19 +227,20 @@ class MainActivity : AppCompatActivity() {
         ui.add(root, bar, 67)
     }
 
-    private fun openPrescription(indoor: Boolean) {
-        if (!state.profileComplete) {
+    private fun openPrescription(environment: ExerciseEnvironment) {
+        if (!state.profile.isComplete) {
             state.profileStep = 0
             navigate(AppRoute.PROFILE_SETUP)
             return
         }
-        state.prescriptionIndoor = indoor
+        state.prescriptionEnvironment = environment
         state.videoStarted = false
         state.prescriptionComplete = false
         navigate(AppRoute.PRESCRIPTION)
     }
 
     private fun refreshWeather() {
+        lastWeatherRefreshAt = SystemClock.elapsedRealtime()
         weatherRequestId++
         deviceLocationProvider.cancel()
         val hasFineLocation = ContextCompat.checkSelfPermission(
@@ -285,10 +299,18 @@ class MainActivity : AppCompatActivity() {
         render()
     }
 
+    private fun saveProfile() {
+        userProfileRepository.save(state.profile)
+    }
+
     override fun onDestroy() {
         weatherRequestId++
         deviceLocationProvider.cancel()
         weatherApiClient.close()
         super.onDestroy()
+    }
+
+    private companion object {
+        const val WEATHER_REFRESH_INTERVAL_MS = 15 * 60 * 1000L
     }
 }

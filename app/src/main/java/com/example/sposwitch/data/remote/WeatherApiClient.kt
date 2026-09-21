@@ -1,5 +1,6 @@
 package com.example.sposwitch.data.remote
 
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import com.example.sposwitch.BuildConfig
@@ -15,6 +16,11 @@ internal class WeatherApiClient(
 ) {
     private val executor = Executors.newSingleThreadExecutor()
     private val mainHandler = Handler(Looper.getMainLooper())
+    private val requestBaseUrl = if (BuildConfig.DEBUG && isAndroidEmulator()) {
+        emulatorLocalBaseUrl(baseUrl)
+    } else {
+        baseUrl
+    }
 
     fun getCurrentWeather(
         latitude: Double,
@@ -23,7 +29,7 @@ internal class WeatherApiClient(
     ) {
         executor.execute {
             val result = runCatching {
-                val endpoint = baseUrl.trimEnd('/') +
+                val endpoint = requestBaseUrl.trimEnd('/') +
                     "/api/v1/weather/current?latitude=$latitude&longitude=$longitude"
                 val connection = (URL(endpoint).openConnection() as HttpURLConnection).apply {
                     requestMethod = "GET"
@@ -72,5 +78,19 @@ internal class WeatherApiClient(
         precipitationAmount = json.getString("precipitationAmount"),
         forecastAt = json.getString("forecastAt"),
         source = json.getString("source"),
+    )
+
+    private fun isAndroidEmulator(): Boolean =
+        Build.FINGERPRINT.startsWith("generic") ||
+            Build.FINGERPRINT.contains("emulator", ignoreCase = true) ||
+            Build.MODEL.contains("Emulator", ignoreCase = true) ||
+            Build.MODEL.contains("Android SDK built for", ignoreCase = true) ||
+            Build.PRODUCT.contains("sdk", ignoreCase = true) ||
+            Build.HARDWARE.equals("goldfish", ignoreCase = true) ||
+            Build.HARDWARE.equals("ranchu", ignoreCase = true)
+
+    private fun emulatorLocalBaseUrl(url: String): String = url.replace(
+        Regex("(?<=//)(localhost|127\\.0\\.0\\.1)(?=[:/]|$)"),
+        "10.0.2.2",
     )
 }
