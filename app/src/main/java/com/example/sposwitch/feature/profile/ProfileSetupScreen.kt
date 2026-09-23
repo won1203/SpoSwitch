@@ -4,7 +4,6 @@ import android.content.res.ColorStateList
 import android.widget.ProgressBar
 import com.example.sposwitch.app.AppRoute
 import com.example.sposwitch.app.FeatureUiScope
-import com.example.sposwitch.data.mock.MockContent
 import com.example.sposwitch.domain.RecommendationPolicy
 import com.example.sposwitch.model.ExerciseEquipment
 import com.example.sposwitch.model.ExercisePlacePreference
@@ -36,7 +35,7 @@ internal object ProfileSetupScreen {
         ui.gap(content, 28)
         ui.section(content, "연령대")
         ui.gap(content, 12)
-        choiceChips(MockContent.ages, state.profile.age) {
+        choiceChips(ProfileOptions.ages, state.profile.age) {
             state.profile = state.profile.copy(age = it)
             rerender()
         }
@@ -50,9 +49,9 @@ internal object ProfileSetupScreen {
         ui.add(content, ui.text("현재 체력 수준은\n어느 쪽에 가까운가요?", 28, bold = true))
         ui.add(content, ui.text("정확한 측정값이 없어도 평소 운동 횟수로 쉽게 선택할 수 있어요.", 14, ui.muted), top = 12)
         ui.gap(content, 24)
-        MockContent.fitnessLevels.forEachIndexed { index, level ->
+        ProfileOptions.fitnessLevels.forEachIndexed { index, level ->
             val selected = state.profile.fitnessLevel == level
-            val description = MockContent.fitnessLevelDescription(level)
+            val description = ProfileOptions.fitnessLevelDescription(level)
             val option = ui.column(16).apply {
                 background = ui.surface(if (selected) ui.lime else ui.pale)
                 ui.add(this, ui.text(level, 18, ui.green, true))
@@ -72,18 +71,14 @@ internal object ProfileSetupScreen {
 
     private fun FeatureUiScope.renderGoal() {
         ui.add(content, ui.text("가장 중요한\n운동 목적은 무엇인가요?", 28, bold = true))
-        ui.add(content, ui.text("선택한 목적을 국민체력100 체력요인과 연결해 보여줍니다.", 14, ui.muted), top = 12)
+        ui.add(content, ui.text("선택한 목적을 국민체력100 영상 정보와 비교합니다.", 14, ui.muted), top = 12)
         ui.gap(content, 26)
         ui.section(content, "운동 목적")
         ui.gap(content, 12)
-        choiceChips(MockContent.goals, state.profile.goal) {
+        choiceChips(ProfileOptions.goals, state.profile.goal) {
             state.profile = state.profile.copy(goal = it)
             rerender()
         }
-        val match = ui.column(14).apply { background = ui.surface() }
-        ui.add(match, ui.text("처방 매칭 체력요인", 12, ui.muted))
-        ui.add(match, ui.text(MockContent.fitnessFactors(state.profile.goal), 18, ui.green, true), top = 8)
-        ui.add(content, match, top = 22)
         ui.add(content, ui.button("운동 환경 선택하기") {
             state.profileStep = 3
             rerender()
@@ -96,7 +91,7 @@ internal object ProfileSetupScreen {
         ui.gap(content, 26)
         ui.section(content, "운동 장소")
         ui.gap(content, 12)
-        choiceChips(MockContent.exercisePlaces, state.profile.placePreference.label) {
+        choiceChips(ProfileOptions.exercisePlaces, state.profile.placePreference.label) {
             val place = ExercisePlacePreference.fromStored(it)
             state.profile = state.profile.copy(
                 placePreference = place,
@@ -113,7 +108,7 @@ internal object ProfileSetupScreen {
             ui.gap(content, 24)
             ui.section(content, "집에서 사용할 수 있는 기구")
             ui.gap(content, 12)
-            choiceChips(MockContent.equipmentOptions, state.profile.equipment.label) {
+            choiceChips(ProfileOptions.equipmentOptions, state.profile.equipment.label) {
                 state.profile = state.profile.copy(equipment = ExerciseEquipment.fromStored(it))
                 rerender()
             }

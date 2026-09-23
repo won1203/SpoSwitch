@@ -37,8 +37,11 @@ def autoConnect = tasks.register('connectDebugBackend') {
             throw new GradleException('localBackendPort must be between 1 and 65535.')
         }
         def listDevices = {
-            adb(['devices']).readLines().collect { it.trim().tokenize() }
-                .findAll { it.size() >= 2 && it[1] in ['device', 'offline', 'unauthorized'] }
+            adb(['devices']).readLines().collect { line ->
+                // adb separates the serial and state with a tab; wireless serials can contain spaces.
+                def match = line =~ /^(.+)\t(device|offline|unauthorized)(?:\s.*)?$/
+                match.matches() ? [match.group(1).trim(), match.group(2)] : null
+            }.findAll { it != null }
         }
         def listed = listDevices()
         def target = ideSerial.orNull

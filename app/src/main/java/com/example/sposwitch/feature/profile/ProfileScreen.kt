@@ -3,7 +3,6 @@ package com.example.sposwitch.feature.profile
 import com.example.sposwitch.R
 import com.example.sposwitch.app.AppRoute
 import com.example.sposwitch.app.FeatureUiScope
-import com.example.sposwitch.data.mock.MockContent
 import com.example.sposwitch.domain.RecommendationPolicy
 import com.example.sposwitch.model.ExercisePlacePreference
 import com.example.sposwitch.ui.component.profileSetupCard
@@ -30,7 +29,7 @@ internal object ProfileScreen {
                 ui.divider(card, 14)
                 summaryRow(card, "사용 기구", profile.equipment.label)
             }
-            ui.add(card, ui.text("처방 매칭 · ${MockContent.fitnessFactors(profile.goal)}", 13, ui.accent, true), top = 8)
+            ui.add(card, ui.text("입력한 기준으로 실제 운동 영상을 조회합니다.", 13, ui.accent, true), top = 8)
             ui.add(content, card)
             ui.add(content, ui.button("내 상태 수정하기", false, R.drawable.ic_tune) {
                 state.profileStep = 0

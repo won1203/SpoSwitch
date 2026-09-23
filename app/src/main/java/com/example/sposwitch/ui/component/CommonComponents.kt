@@ -11,8 +11,6 @@ import com.example.sposwitch.app.FeatureUiScope
 import com.example.sposwitch.app.WeatherLoadState
 import com.example.sposwitch.data.mock.MockContent
 import com.example.sposwitch.model.ExerciseEnvironment
-import com.example.sposwitch.model.ExerciseEquipment
-import com.example.sposwitch.model.ExercisePlacePreference
 import com.google.android.material.materialswitch.MaterialSwitch
 
 internal fun FeatureUiScope.weatherCard() {
@@ -115,23 +113,14 @@ internal fun FeatureUiScope.exerciseHero(environment: ExerciseEnvironment) {
         setPadding(ui.dp(10), ui.dp(5), ui.dp(10), ui.dp(5))
     }, LinearLayout.LayoutParams(-2, -2))
     val profile = state.profile
-    val equipment = if (
-        environment == ExerciseEnvironment.HOME &&
-        profile.placePreference == ExercisePlacePreference.HOME
-    ) {
-        profile.equipment
-    } else {
-        ExerciseEquipment.NONE
-    }
-    val exercise = MockContent.exercise(environment, profile.goal, equipment)
-    ui.add(overlay, ui.text(exercise, 22, ui.white, true).apply {
+    ui.add(overlay, ui.text(profile.goal, 22, ui.white, true).apply {
         setShadowLayer(ui.dp(3).toFloat(), 0f, 1f, 0xFF133B28.toInt())
     }, top = 6)
-    ui.add(overlay, ui.text("${profile.goal} · 20분", 13, ui.white).apply {
+    ui.add(overlay, ui.text("국민체력100 운동 영상 찾기", 13, ui.white).apply {
         setShadowLayer(ui.dp(3).toFloat(), 0f, 1f, 0xFF133B28.toInt())
     }, top = 5)
     frame.addView(overlay, FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM))
-    ui.click(frame, "$exercise 운동 처방 보기") { openPrescription(environment) }
+    ui.click(frame, "${profile.goal} 운동 영상 보기") { openPrescription(environment) }
     ui.add(content, frame, 215)
 }
 

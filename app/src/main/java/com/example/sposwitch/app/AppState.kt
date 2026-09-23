@@ -5,6 +5,7 @@ import com.example.sposwitch.model.CurrentWeather
 import com.example.sposwitch.model.ExerciseEnvironment
 import com.example.sposwitch.model.ExerciseEquipment
 import com.example.sposwitch.model.ExercisePlacePreference
+import com.example.sposwitch.model.ExerciseVideoResult
 import com.example.sposwitch.model.UserProfile
 
 internal enum class WeatherLoadState {
@@ -13,6 +14,8 @@ internal enum class WeatherLoadState {
     READY,
     ERROR,
 }
+
+internal enum class ExerciseLoadState { IDLE, LOADING, READY, ERROR }
 
 /** Mutable screen state. The completed user profile is persisted by UserProfileRepository. */
 internal data class AppState(
@@ -26,7 +29,9 @@ internal data class AppState(
     var profileStep: Int = 0,
     var selectedFacility: Int = 0,
     var prescriptionEnvironment: ExerciseEnvironment = ExerciseEnvironment.OUTDOOR,
-    var videoStarted: Boolean = false,
+    var exerciseResult: ExerciseVideoResult? = null,
+    var exerciseLoadState: ExerciseLoadState = ExerciseLoadState.IDLE,
+    var exerciseError: String? = null,
     var prescriptionComplete: Boolean = false,
     var mapVisible: Boolean = true,
 ) {
@@ -43,7 +48,6 @@ internal data class AppState(
         putInt("step", profileStep)
         putInt("facility", selectedFacility)
         putString("routineEnvironment", prescriptionEnvironment.name)
-        putBoolean("routineStarted", videoStarted)
         putBoolean("routineComplete", prescriptionComplete)
         putBoolean("mapVisible", mapVisible)
     }
@@ -80,7 +84,6 @@ internal data class AppState(
                 profileStep = bundle.getInt("step").coerceIn(0, 3),
                 selectedFacility = bundle.getInt("facility"),
                 prescriptionEnvironment = restoredEnvironment,
-                videoStarted = bundle.getBoolean("routineStarted"),
                 prescriptionComplete = bundle.getBoolean("routineComplete"),
                 mapVisible = bundle.getBoolean("mapVisible", true),
             )

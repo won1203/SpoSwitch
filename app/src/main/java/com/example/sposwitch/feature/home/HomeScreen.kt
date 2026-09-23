@@ -4,7 +4,6 @@ import android.widget.LinearLayout
 import com.example.sposwitch.R
 import com.example.sposwitch.app.AppRoute
 import com.example.sposwitch.app.FeatureUiScope
-import com.example.sposwitch.data.mock.MockContent
 import com.example.sposwitch.domain.RecommendationPolicy
 import com.example.sposwitch.model.ExerciseEnvironment
 import com.example.sposwitch.model.ExercisePlacePreference
@@ -49,7 +48,7 @@ internal object HomeScreen {
         ui.add(content, summary)
         ui.gap(content, 20)
         ui.add(content, ui.text("오늘의 맞춤 운동", 25, bold = true))
-        ui.add(content, ui.text("${profile.goal} → ${MockContent.fitnessFactors(profile.goal)} 처방 매칭", 13, ui.muted), top = 8)
+        ui.add(content, ui.text("${profile.goal}에 맞는 국민체력100 운동 영상을 찾아요.", 13, ui.muted), top = 8)
 
         val recommendation = RecommendationPolicy.recommend(profile, state.weather)
         recommendation.environments.forEachIndexed { index, environment ->

@@ -2,7 +2,6 @@ package com.example.sposwitch.feature.facility
 
 import com.example.sposwitch.R
 import com.example.sposwitch.app.FeatureUiScope
-import com.example.sposwitch.data.mock.MockContent
 import com.example.sposwitch.model.ExerciseEnvironment
 import com.example.sposwitch.ui.component.facilityMap
 import com.example.sposwitch.ui.component.facilityRow
@@ -26,9 +25,9 @@ internal object WeatherSwitchScreen {
         facilityRow(2)
         ui.gap(content, 16)
         ui.section(content, "함께 하면 좋은 운동")
-        ui.add(content, ui.button(MockContent.exercise(ExerciseEnvironment.INDOOR_FACILITY, state.profile.goal), false, R.drawable.ic_play_arrow) {
+        ui.add(content, ui.button("${state.profile.goal} 운동 영상 보기", false, R.drawable.ic_play_arrow) {
             openPrescription(ExerciseEnvironment.INDOOR_FACILITY)
         }, top = 12)
-        ui.add(content, ui.text("${MockContent.fitnessFactors(state.profile.goal)} · 20분 · 예시 처방", 13, ui.muted), top = 10)
+        ui.add(content, ui.text("국민체력100에서 조건에 맞는 운동을 조회합니다.", 13, ui.muted), top = 10)
     }
 }
