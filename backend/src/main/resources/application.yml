@@ -3,10 +3,15 @@ spring:
     name: backend
 
 external-api:
+  # 카카오맵 API
   kakao:
     base-url: https://dapi.kakao.com
     rest-api-key: ${KAKAO_REST_API_KEY}
-
+  # 기상청 날씨 API
   kma:
     base-url: https://apis.data.go.kr/1360000/VilageFcstInfoService_2.0
     service-key: ${KMA_SERVICE_KEY}
+  # 국민체력 100 동영상 정보 API
+  fitness100:
+    base-url: https://apis.data.go.kr/B551014/SRVC_TODZ_VDO_PKG
+    service-key: ${FITNESS100_SERVICE_KEY}
