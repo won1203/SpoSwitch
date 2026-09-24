@@ -91,4 +91,38 @@ class FitnessVideoClientTests {
             server.stop(0);
         }
     }
+
+    @Test
+    void readsStandardExerciseFieldsAndCachesTheProgram() throws Exception {
+        HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        List<String> requests = new ArrayList<>();
+        server.createContext("/B551014/SRVC_TODZ_VDO_PKG/", exchange -> {
+            requests.add(exchange.getRequestURI().getPath());
+            byte[] bytes = """
+                    {"header":{"resultCode":"00"},"body":{"totalCount":"1","items":{"item":{
+                      "vdo_ttl_nm":"성인기 1주차 운동프로그램","aggrp_nm":"성인","trng_week_nm":"1주차",
+                      "trng_sqnc_nm":"준비 운동","trng_nm":"손목 돌리기","trng_hr_nm":"30초",
+                      "set_cnt_nm":"1~1","rptt_tcnt_nm":"5~5",
+                      "file_url":"https://example.org/video/","file_nm":"program.mp4"}}}}
+                    """.getBytes(StandardCharsets.UTF_8);
+            exchange.sendResponseHeaders(200, bytes.length);
+            exchange.getResponseBody().write(bytes);
+            exchange.close();
+        });
+        server.start();
+        try {
+            FitnessVideoClient client = new FitnessVideoClient(new Fitness100ApiProperties(
+                    "http://127.0.0.1:" + server.getAddress().getPort() + "/B551014/SRVC_TODZ_VDO_PKG",
+                    "test-key"
+            ), HttpClient.newHttpClient());
+            var exercise = client.fetchStandardExercises().getFirst();
+            assertEquals("준비 운동", exercise.phase());
+            assertEquals("30초", exercise.duration());
+            assertEquals("https://example.org/video/program.mp4", exercise.videoUrl());
+            assertEquals(1, client.fetchStandardExercises().size());
+            assertEquals(List.of("/B551014/SRVC_TODZ_VDO_PKG/TODZ_VDO_STD_FTNS_I"), requests);
+        } finally {
+            server.stop(0);
+        }
+    }
 }

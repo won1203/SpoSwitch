@@ -33,6 +33,7 @@ public class FitnessVideoClient {
     private final HttpClient httpClient;
     private final JsonMapper jsonMapper = JsonMapper.builder().build();
     private final Map<String, CacheEntry> cache = new HashMap<>();
+    private StandardCacheEntry standardCache;
 
     @Autowired
     public FitnessVideoClient(Fitness100ApiProperties properties) {
@@ -55,6 +56,30 @@ public class FitnessVideoClient {
             videos.addAll(entry.videos());
         }
         return videos;
+    }
+
+    public synchronized List<StandardExercise> fetchStandardExercises() {
+        String operation = "TODZ_VDO_STD_FTNS_I";
+        StandardCacheEntry entry = standardCache;
+        if (entry == null || Instant.now().isAfter(entry.expiresAt())) {
+            List<StandardExercise> exercises = new ArrayList<>();
+            for (int page = 1; page <= MAX_PAGES; page++) {
+                JsonNode body = requestPage(operation, page);
+                JsonNode item = body.path("items").path("item");
+                if (item.isArray()) {
+                    for (JsonNode row : item) exercises.add(mapStandardExercise(row));
+                } else if (item.isObject()) {
+                    exercises.add(mapStandardExercise(item));
+                }
+                int total = integer(body.path("totalCount"));
+                if (total == 0 || page * PAGE_SIZE >= total) {
+                    standardCache = new StandardCacheEntry(List.copyOf(exercises), Instant.now().plus(CACHE_AGE));
+                    return standardCache.exercises();
+                }
+            }
+            throw new ExternalApiException("국민체력100 표준운동 목록이 조회 한도를 초과했습니다.");
+        }
+        return entry.exercises();
     }
 
     private List<Video> fetchOperation(String operation) {
@@ -139,6 +164,15 @@ public class FitnessVideoClient {
         );
     }
 
+    private static StandardExercise mapStandardExercise(JsonNode row) {
+        return new StandardExercise(
+                value(row, "vdo_ttl_nm"), value(row, "aggrp_nm"), value(row, "trng_week_nm"),
+                value(row, "trng_sqnc_nm"), value(row, "trng_nm"), value(row, "trng_hr_nm"),
+                value(row, "set_cnt_nm"), value(row, "rptt_tcnt_nm"),
+                videoUrl(value(row, "file_url"), value(row, "file_nm"))
+        );
+    }
+
     private static String videoUrl(String directoryOrUrl, String fileName) {
         if (fileName.startsWith("http://") || fileName.startsWith("https://")) return fileName;
         if (fileName.isBlank() || directoryOrUrl.isBlank()) return directoryOrUrl;
@@ -150,10 +184,19 @@ public class FitnessVideoClient {
     private record CacheEntry(List<Video> videos, Instant expiresAt) {
     }
 
+    private record StandardCacheEntry(List<StandardExercise> exercises, Instant expiresAt) {
+    }
+
     public record Video(
             String title, String exerciseName, String description, String videoUrl, String duration,
             String ageGroup, String place, String purpose, String equipment, String fitnessFactor,
             String trainingType, String operation
+    ) {
+    }
+
+    public record StandardExercise(
+            String programTitle, String ageGroup, String week, String phase, String exerciseName,
+            String duration, String sets, String repetitions, String videoUrl
     ) {
     }
 }
