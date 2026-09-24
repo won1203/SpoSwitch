@@ -8,6 +8,7 @@ import com.example.sposwitch.R
 import com.example.sposwitch.app.AppRoute
 import com.example.sposwitch.app.FeatureUiScope
 import com.example.sposwitch.data.mock.MockContent
+import com.example.sposwitch.model.ExerciseEnvironment
 import com.example.sposwitch.model.NearbyFacility
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 
@@ -49,8 +50,10 @@ internal object FacilityDetailScreen {
             top = 8,
         )
         ui.add(content, ui.button("지도 앱으로 길안내", icon = R.drawable.ic_near_me) { openMap(facility) }, top = 24)
-        ui.add(content, ui.button("이곳에서 할 운동 처방 보기", false, R.drawable.ic_play_arrow) {
-            openPrescription(facility.indoor)
+        ui.add(content, ui.button("이곳에서 할 운동 영상 보기", false, R.drawable.ic_play_arrow) {
+            openPrescription(
+                if (facility.indoor) ExerciseEnvironment.INDOOR_FACILITY else ExerciseEnvironment.OUTDOOR,
+            )
         }, top = 12)
     }
 
@@ -116,8 +119,10 @@ internal object FacilityDetailScreen {
                 .setPositiveButton("확인", null)
                 .show()
         }, top = 24)
-        ui.add(content, ui.button("이곳에서 할 운동 처방 보기", false, R.drawable.ic_play_arrow) {
-            openPrescription(facility.indoor)
+        ui.add(content, ui.button("이곳에서 할 운동 영상 보기", false, R.drawable.ic_play_arrow) {
+            openPrescription(
+                if (facility.indoor) ExerciseEnvironment.INDOOR_FACILITY else ExerciseEnvironment.OUTDOOR,
+            )
         }, top = 12)
     }
 }

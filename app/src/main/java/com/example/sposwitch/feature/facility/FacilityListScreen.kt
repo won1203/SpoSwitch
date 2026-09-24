@@ -5,6 +5,7 @@ import android.widget.ProgressBar
 import com.example.sposwitch.R
 import com.example.sposwitch.app.AppRoute
 import com.example.sposwitch.app.FeatureUiScope
+import com.example.sposwitch.domain.RecommendationPolicy
 import com.example.sposwitch.model.NearbyFacilities
 import com.example.sposwitch.model.NearbyFacility
 import com.example.sposwitch.ui.component.choiceChips
@@ -16,7 +17,7 @@ internal object FacilityListScreen {
         ui.gap(content, 20)
 
         // Bad weather opens the list on indoor facilities until the user picks a filter themselves.
-        val indoorByWeather = state.weather?.recommendsIndoor == true
+        val indoorByWeather = state.weather?.let { RecommendationPolicy.weatherRisks(it).isNotEmpty() } == true
         if (indoorByWeather && !FacilityStore.filterTouched && state.facilityFilter == "전체") {
             state.facilityFilter = "실내"
         }
@@ -26,7 +27,7 @@ internal object FacilityListScreen {
             rerender()
         }
         if (indoorByWeather) {
-            ui.add(content, ui.text("${state.weather?.condition} 예보가 있어 실내 시설을 먼저 보여드려요.", 13, ui.accent, true), top = 10)
+            ui.add(content, ui.text("현재 날씨를 고려해 실내 시설을 먼저 보여드려요.", 13, ui.accent, true), top = 10)
         }
         ui.gap(content, 12)
         val goal = goalFilter()
@@ -41,7 +42,7 @@ internal object FacilityListScreen {
         }
         if (result.items.isEmpty()) {
             val reason = if (goal != null) {
-                "반경 3km 안에 ${state.goal} 목표에 맞는 ${state.facilityFilter} 시설이 없어요. 목표 필터를 끄거나 다른 조건을 선택해 보세요."
+                "반경 3km 안에 ${state.profile.goal} 목표에 맞는 ${state.facilityFilter} 시설이 없어요. 목표 필터를 끄거나 다른 조건을 선택해 보세요."
             } else {
                 "반경 3km 안에 조건에 맞는 시설이 없어요. 다른 필터를 선택해 보세요."
             }
@@ -58,7 +59,7 @@ internal object FacilityListScreen {
 
 /** Goal toggle. Returns the goal code to filter by, or null to show every sport. */
 private fun FeatureUiScope.goalFilter(): String? {
-    if (!state.profileComplete) {
+    if (!state.profile.isComplete) {
         ui.add(content, ui.button("내 상태를 입력하면 목표에 맞는 시설만 볼 수 있어요", false, R.drawable.ic_person) {
             state.profileStep = 0
             navigate(AppRoute.PROFILE_SETUP)
@@ -71,11 +72,11 @@ private fun FeatureUiScope.goalFilter(): String? {
         rerender()
     })
     row.addView(
-        ui.text(if (FacilityStore.goalOnly) state.goal else "모든 종목", 13, ui.muted),
+        ui.text(if (FacilityStore.goalOnly) state.profile.goal else "모든 종목", 13, ui.muted),
         LinearLayout.LayoutParams(0, -2, 1f).apply { leftMargin = ui.dp(10) },
     )
     ui.add(content, row, top = 4)
-    return if (FacilityStore.goalOnly) FacilityStore.goalToCode(state.goal) else null
+    return if (FacilityStore.goalOnly) FacilityStore.goalToCode(state.profile.goal) else null
 }
 
 /**

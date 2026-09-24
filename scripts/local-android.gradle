@@ -37,14 +37,18 @@ def autoConnect = tasks.register('connectDebugBackend') {
             throw new GradleException('localBackendPort must be between 1 and 65535.')
         }
         def listDevices = {
-            adb(['devices']).readLines().collect { it.trim().tokenize() }
-                .findAll { it.size() >= 2 && it[1] in ['device', 'offline', 'unauthorized'] }
+            adb(['devices']).readLines().collect { line ->
+                // adb separates the serial and state with a tab; wireless serials can contain spaces.
+                def match = line =~ /^(.+)\t(device|offline|unauthorized)(?:\s.*)?$/
+                match.matches() ? [match.group(1).trim(), match.group(2)] : null
+            }.findAll { it != null }
         }
         def listed = listDevices()
         def target = ideSerial.orNull
         def ready = { rows -> target ? rows.any { it[0] == target && it[1] == 'device' } : rows.any { it[1] == 'device' } }
-        // Android Studio can boot the selected emulator while Gradle builds the APK.
-        if (fromIde.get() == 'true' && !ready(listed)) {
+        // Android Studio manages emulator startup and installation. Physical devices get a short
+        // grace period so the user can accept the USB/wireless debugging authorization prompt.
+        if (fromIde.get() == 'true' && !ready(listed) && !target?.startsWith('emulator-')) {
             logger.lifecycle('Waiting for the Android Studio device to connect...')
             long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(45)
             while (!ready(listed) && System.nanoTime() < deadline) {
@@ -53,7 +57,9 @@ def autoConnect = tasks.register('connectDebugBackend') {
             }
         }
         if (fromIde.get() == 'true' && !ready(listed)) {
-            throw new GradleException('The selected device is not ready. Start the emulator or authorize USB/wireless debugging, then press Run again.')
+            def selectedState = listed.find { target && it[0] == target }?.getAt(1) ?: 'not connected'
+            logger.warn("Selected device is not ready (${selectedState}). Skipping local forwarding without failing the app build.")
+            return
         }
         def connected = listed.findAll { it[1] == 'device' }
         if (connected.isEmpty()) {
@@ -65,12 +71,17 @@ def autoConnect = tasks.register('connectDebugBackend') {
         }
         connected.each { row ->
             def serial = row[0]
-            adb(['-s', serial, 'reverse', 'tcp:8080', "tcp:${port}"])
-            def mappings = adb(['-s', serial, 'reverse', '--list']).readLines()*.tokenize()
-            if (!mappings.any { it.size() >= 3 && it[-2] == 'tcp:8080' && it[-1] == "tcp:${port}" }) {
-                throw new GradleException("Local server forwarding failed on ${serial}. Reconnect and press Run again.")
+            try {
+                adb(['-s', serial, 'reverse', 'tcp:8080', "tcp:${port}"])
+                def mappings = adb(['-s', serial, 'reverse', '--list']).readLines()*.tokenize()
+                if (!mappings.any { it.size() >= 3 && it[-2] == 'tcp:8080' && it[-1] == "tcp:${port}" }) {
+                    logger.warn("Local server forwarding could not be verified on ${serial}.")
+                } else {
+                    logger.lifecycle("${serial}: local Spring connection ready (device :8080 -> PC :${port}).")
+                }
+            } catch (Exception error) {
+                logger.warn("Local server forwarding skipped for ${serial}: ${error.message}")
             }
-            logger.lifecycle("${serial}: local Spring connection ready (device :8080 -> PC :${port}).")
         }
         // Server downtime must not prevent compiling or installing a debug APK.
         // The app can retry after Spring starts; the tunnel is already installed.

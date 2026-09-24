@@ -54,7 +54,4 @@ internal data class CurrentWeather(
             "PARTLY_CLOUDY", "CLOUDY" -> R.drawable.ic_cloudy
             else -> R.drawable.ic_rainy
         }
-
-    val recommendsIndoor: Boolean
-        get() = conditionCode in setOf("RAIN", "RAIN_SNOW", "SNOW", "SHOWER")
 }

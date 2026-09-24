@@ -10,6 +10,7 @@ import com.example.sposwitch.app.AppRoute
 import com.example.sposwitch.app.FeatureUiScope
 import com.example.sposwitch.app.WeatherLoadState
 import com.example.sposwitch.data.mock.MockContent
+import com.example.sposwitch.model.ExerciseEnvironment
 import com.google.android.material.materialswitch.MaterialSwitch
 
 internal fun FeatureUiScope.weatherCard() {
@@ -76,9 +77,10 @@ internal fun FeatureUiScope.profileSetupCard() {
     ui.add(card, ui.text("내 상태를 알려주세요", 23, bold = true))
     ui.add(card, ui.text("국민체력100 운동처방 데이터와 연결될 개인화 기준을 먼저 설정해요.", 14, ui.muted), top = 9)
     listOf(
-        "1" to "성별과 연령대",
-        "2" to "키와 몸무게",
-        "3" to "운동 목표",
+        "1" to "연령대",
+        "2" to "체력 수준",
+        "3" to "운동 목적",
+        "4" to "운동 장소와 홈 기구",
     ).forEach { (number, label) ->
         val row = ui.row().apply { setPadding(0, ui.dp(12), 0, 0) }
         row.addView(ui.text(number, 12, ui.green, true).apply {
@@ -97,26 +99,29 @@ internal fun FeatureUiScope.profileSetupCard() {
     ui.add(content, card)
 }
 
-internal fun FeatureUiScope.exerciseHero(indoor: Boolean) {
+internal fun FeatureUiScope.exerciseHero(environment: ExerciseEnvironment) {
     val frame = FrameLayout(activity).apply {
         background = ui.surface()
         clipToOutline = true
     }
-    frame.addView(ui.image(if (indoor) R.drawable.indoor_hero else R.drawable.track_hero), FrameLayout.LayoutParams(-1, -1))
+    frame.addView(
+        ui.image(if (environment.isIndoor) R.drawable.indoor_hero else R.drawable.track_hero),
+        FrameLayout.LayoutParams(-1, -1),
+    )
     val overlay = ui.column(14)
-    overlay.addView(ui.text(if (indoor) "오늘의 실내 운동" else "오늘의 야외 운동", 11, ui.green, true).apply {
+    overlay.addView(ui.text("오늘의 ${environment.label}", 11, ui.green, true).apply {
         background = ui.surface(ui.lime, 20)
         setPadding(ui.dp(10), ui.dp(5), ui.dp(10), ui.dp(5))
     }, LinearLayout.LayoutParams(-2, -2))
-    val exercise = MockContent.exercise(indoor, state.goal)
-    ui.add(overlay, ui.text(exercise, 22, ui.white, true).apply {
+    val profile = state.profile
+    ui.add(overlay, ui.text(profile.goal, 22, ui.white, true).apply {
         setShadowLayer(ui.dp(3).toFloat(), 0f, 1f, 0xFF133B28.toInt())
     }, top = 6)
-    ui.add(overlay, ui.text("${state.goal} · 20분", 13, ui.white).apply {
+    ui.add(overlay, ui.text("국민체력100 운동 영상 찾기", 13, ui.white).apply {
         setShadowLayer(ui.dp(3).toFloat(), 0f, 1f, 0xFF133B28.toInt())
     }, top = 5)
     frame.addView(overlay, FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM))
-    ui.click(frame, "$exercise 운동 처방 보기") { openPrescription(indoor) }
+    ui.click(frame, "${profile.goal} 운동 영상 보기") { openPrescription(environment) }
     ui.add(content, frame, 215)
 }
 
