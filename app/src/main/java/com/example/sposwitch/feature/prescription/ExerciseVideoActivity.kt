@@ -61,7 +61,7 @@ class ExerciseVideoActivity : AppCompatActivity() {
         }
         header.addView(Button(this).apply {
             text = "뒤로"
-            contentDescription = "운동 처방으로 돌아가기"
+            contentDescription = "운동 영상으로 돌아가기"
             setOnClickListener { finish() }
         })
         header.addView(TextView(this).apply {

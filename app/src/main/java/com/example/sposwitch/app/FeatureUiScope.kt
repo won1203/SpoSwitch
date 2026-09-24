@@ -18,7 +18,9 @@ internal class FeatureUiScope(
     private val weatherRefreshAction: () -> Unit,
     private val profileSaveAction: () -> Unit,
     private val prescriptionRefreshAction: () -> Unit,
+    private val planRefreshAction: () -> Unit,
     private val videoOpenAction: (ExerciseVideo) -> Unit,
+    private val planVideoOpenAction: (String, String) -> Unit,
 ) {
     fun navigate(route: AppRoute, asTab: Boolean = false) = navigateAction(route, asTab)
     fun rerender() = renderAction()
@@ -26,5 +28,7 @@ internal class FeatureUiScope(
     fun refreshWeather() = weatherRefreshAction()
     fun saveProfile() = profileSaveAction()
     fun refreshPrescription() = prescriptionRefreshAction()
+    fun refreshPlan() = planRefreshAction()
     fun openVideo(video: ExerciseVideo) = videoOpenAction(video)
+    fun openPlanVideo(title: String, url: String) = planVideoOpenAction(title, url)
 }

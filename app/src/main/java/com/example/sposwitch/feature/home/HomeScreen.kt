@@ -54,7 +54,7 @@ internal object HomeScreen {
         recommendation.environments.forEachIndexed { index, environment ->
             ui.gap(content, if (index == 0) 14 else 20)
             exerciseHero(environment)
-            ui.add(content, ui.button("${environment.label} 처방과 영상 보기", icon = R.drawable.ic_play_arrow) {
+            ui.add(content, ui.button("${environment.label} 운동 영상 보기", icon = R.drawable.ic_play_arrow) {
                 openPrescription(environment)
             }, top = 12)
         }

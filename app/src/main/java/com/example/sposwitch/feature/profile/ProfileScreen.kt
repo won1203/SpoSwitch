@@ -35,7 +35,7 @@ internal object ProfileScreen {
                 state.profileStep = 0
                 navigate(AppRoute.PROFILE_SETUP)
             }, top = 20)
-            ui.add(content, ui.button("맞춤 운동 처방 보기", icon = R.drawable.ic_fitness_center) {
+            ui.add(content, ui.button("맞춤 운동 영상 보기", icon = R.drawable.ic_fitness_center) {
                 openPrescription(RecommendationPolicy.recommend(profile, state.weather).primaryEnvironment)
             }, top = 12)
         } else {

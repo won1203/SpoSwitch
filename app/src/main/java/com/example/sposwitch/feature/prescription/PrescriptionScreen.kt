@@ -20,7 +20,7 @@ internal object PrescriptionScreen {
             return@with
         }
 
-        ui.add(content, ui.text("맞춤 운동 처방과 영상", 27, bold = true))
+        ui.add(content, ui.text("맞춤 운동 영상", 27, bold = true))
         ui.add(content, ui.text(
             "${profile.age} · ${profile.fitnessLevel} · ${profile.goal} · ${state.prescriptionEnvironment.label}",
             14, ui.muted,

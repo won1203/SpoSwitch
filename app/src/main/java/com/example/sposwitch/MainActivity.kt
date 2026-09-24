@@ -31,6 +31,7 @@ import com.example.sposwitch.feature.facility.FacilityListScreen
 import com.example.sposwitch.feature.facility.WeatherSwitchScreen
 import com.example.sposwitch.feature.home.HomeScreen
 import com.example.sposwitch.feature.prescription.PrescriptionScreen
+import com.example.sposwitch.feature.prescription.ExercisePlanScreen
 import com.example.sposwitch.feature.prescription.ExerciseVideoActivity
 import com.example.sposwitch.feature.profile.ProfileScreen
 import com.example.sposwitch.feature.profile.ProfileSetupScreen
@@ -53,6 +54,7 @@ class MainActivity : AppCompatActivity() {
     private var route = AppRoute.HOME
     private var weatherRequestId = 0
     private var exerciseRequestId = 0
+    private var planRequestId = 0
     private var lastWeatherRefreshAt = 0L
     private val locationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
@@ -78,7 +80,7 @@ class MainActivity : AppCompatActivity() {
         configureSystemBars()
         configureBackNavigation()
         render()
-        if (route == AppRoute.PRESCRIPTION && state.profile.isComplete) refreshPrescription()
+        loadExerciseTabIfNeeded()
     }
 
     override fun onResume() {
@@ -131,6 +133,7 @@ class MainActivity : AppCompatActivity() {
                     }
                     else -> finish()
                 }
+                loadExerciseTabIfNeeded()
             }
         })
     }
@@ -139,6 +142,16 @@ class MainActivity : AppCompatActivity() {
         if (asTab) history.clear() else if (route != destination) history.add(route)
         route = destination
         render()
+        loadExerciseTabIfNeeded()
+    }
+
+    private fun loadExerciseTabIfNeeded() {
+        if (!state.profile.isComplete) return
+        when (route) {
+            AppRoute.PRESCRIPTION -> if (state.exerciseLoadState == ExerciseLoadState.IDLE) refreshPrescription()
+            AppRoute.PLAN -> if (state.planLoadState == ExerciseLoadState.IDLE) refreshPlan()
+            else -> Unit
+        }
     }
 
     private fun render() {
@@ -167,11 +180,14 @@ class MainActivity : AppCompatActivity() {
             weatherRefreshAction = ::refreshWeather,
             profileSaveAction = ::saveProfile,
             prescriptionRefreshAction = ::refreshPrescription,
+            planRefreshAction = ::refreshPlan,
             videoOpenAction = ::openVideo,
+            planVideoOpenAction = ::openPlanVideo,
         )
         when (route) {
             AppRoute.HOME -> HomeScreen.render(scope)
             AppRoute.PRESCRIPTION -> PrescriptionScreen.render(scope)
+            AppRoute.PLAN -> ExercisePlanScreen.render(scope)
             AppRoute.FACILITIES -> FacilityListScreen.render(scope)
             AppRoute.PROFILE -> ProfileScreen.render(scope)
             AppRoute.WEATHER -> WeatherScreen.render(scope)
@@ -217,7 +233,8 @@ class MainActivity : AppCompatActivity() {
         val bar = ui.row()
         listOf(
             Triple(AppRoute.HOME, "홈", R.drawable.ic_home),
-            Triple(AppRoute.PRESCRIPTION, "운동 처방", R.drawable.ic_fitness_center),
+            Triple(AppRoute.PRESCRIPTION, "운동 영상", R.drawable.ic_play_arrow),
+            Triple(AppRoute.PLAN, "계획서", R.drawable.ic_fitness_center),
             Triple(AppRoute.FACILITIES, "시설", R.drawable.ic_location_on),
             Triple(AppRoute.PROFILE, "내 상태", R.drawable.ic_person),
         ).forEach { (destination, label, icon) ->
@@ -245,6 +262,9 @@ class MainActivity : AppCompatActivity() {
             return
         }
         state.prescriptionEnvironment = environment
+        state.planResult = null
+        state.planLoadState = ExerciseLoadState.IDLE
+        planRequestId++
         state.exerciseResult = null
         state.exerciseError = null
         state.exerciseLoadState = ExerciseLoadState.LOADING
@@ -281,10 +301,36 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun refreshPlan() {
+        state.planResult = null
+        state.planError = null
+        state.planLoadState = ExerciseLoadState.LOADING
+        render()
+        val requestId = ++planRequestId
+        exerciseApiClient.plan(state.profile, state.prescriptionEnvironment) { result ->
+            if (requestId != planRequestId || isFinishing || isDestroyed) return@plan
+            result.fold(
+                onSuccess = {
+                    state.planResult = it
+                    state.planLoadState = ExerciseLoadState.READY
+                },
+                onFailure = {
+                    state.planLoadState = ExerciseLoadState.ERROR
+                    state.planError = it.message ?: "운동 계획서를 불러오지 못했습니다."
+                },
+            )
+            if (route == AppRoute.PLAN) render()
+        }
+    }
+
     private fun openVideo(video: ExerciseVideo) {
+        openPlanVideo(video.title, video.videoUrl)
+    }
+
+    private fun openPlanVideo(title: String, url: String) {
         startActivity(Intent(this, ExerciseVideoActivity::class.java).apply {
-            putExtra(ExerciseVideoActivity.EXTRA_TITLE, video.title)
-            putExtra(ExerciseVideoActivity.EXTRA_VIDEO_URL, video.videoUrl)
+            putExtra(ExerciseVideoActivity.EXTRA_TITLE, title)
+            putExtra(ExerciseVideoActivity.EXTRA_VIDEO_URL, url)
         })
     }
 
@@ -350,11 +396,18 @@ class MainActivity : AppCompatActivity() {
 
     private fun saveProfile() {
         userProfileRepository.save(state.profile)
+        exerciseRequestId++
+        planRequestId++
+        state.exerciseResult = null
+        state.exerciseLoadState = ExerciseLoadState.IDLE
+        state.planResult = null
+        state.planLoadState = ExerciseLoadState.IDLE
     }
 
     override fun onDestroy() {
         weatherRequestId++
         exerciseRequestId++
+        planRequestId++
         deviceLocationProvider.cancel()
         weatherApiClient.close()
         exerciseApiClient.close()

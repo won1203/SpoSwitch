@@ -27,7 +27,7 @@ internal object FacilityDetailScreen {
                 .setPositiveButton("확인", null)
                 .show()
         }, top = 24)
-        ui.add(content, ui.button("이곳에서 할 운동 처방 보기", false, R.drawable.ic_play_arrow) {
+        ui.add(content, ui.button("이곳에서 할 운동 영상 보기", false, R.drawable.ic_play_arrow) {
             openPrescription(
                 if (facility.indoor) ExerciseEnvironment.INDOOR_FACILITY else ExerciseEnvironment.OUTDOOR,
             )

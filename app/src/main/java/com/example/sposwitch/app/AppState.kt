@@ -5,6 +5,7 @@ import com.example.sposwitch.model.CurrentWeather
 import com.example.sposwitch.model.ExerciseEnvironment
 import com.example.sposwitch.model.ExerciseEquipment
 import com.example.sposwitch.model.ExercisePlacePreference
+import com.example.sposwitch.model.ExercisePlan
 import com.example.sposwitch.model.ExerciseVideoResult
 import com.example.sposwitch.model.UserProfile
 
@@ -32,6 +33,11 @@ internal data class AppState(
     var exerciseResult: ExerciseVideoResult? = null,
     var exerciseLoadState: ExerciseLoadState = ExerciseLoadState.IDLE,
     var exerciseError: String? = null,
+    var planResult: ExercisePlan? = null,
+    var planLoadState: ExerciseLoadState = ExerciseLoadState.IDLE,
+    var planError: String? = null,
+    var selectedPlanWeek: Int = 1,
+    var selectedPlanPhase: String = "준비 운동",
     var prescriptionComplete: Boolean = false,
     var mapVisible: Boolean = true,
 ) {
@@ -49,6 +55,8 @@ internal data class AppState(
         putInt("facility", selectedFacility)
         putString("routineEnvironment", prescriptionEnvironment.name)
         putBoolean("routineComplete", prescriptionComplete)
+        putInt("selectedPlanWeek", selectedPlanWeek)
+        putString("selectedPlanPhase", selectedPlanPhase)
         putBoolean("mapVisible", mapVisible)
     }
 
@@ -85,6 +93,8 @@ internal data class AppState(
                 selectedFacility = bundle.getInt("facility"),
                 prescriptionEnvironment = restoredEnvironment,
                 prescriptionComplete = bundle.getBoolean("routineComplete"),
+                selectedPlanWeek = bundle.getInt("selectedPlanWeek", 1).coerceIn(1, 4),
+                selectedPlanPhase = bundle.getString("selectedPlanPhase", "준비 운동"),
                 mapVisible = bundle.getBoolean("mapVisible", true),
             )
         }
