@@ -66,7 +66,16 @@ internal class WeatherApiClient(
         executor.shutdownNow()
     }
 
-    private fun parseWeather(json: JSONObject) = CurrentWeather(
+    private fun parseWeather(json: JSONObject): CurrentWeather {
+        val air = json.optJSONObject("airQuality")
+        return baseWeather(json).copy(
+            airStation = air?.optString("stationName")?.takeIf(String::isNotBlank),
+            pm10Grade = air?.takeUnless { it.isNull("pm10Grade") }?.getInt("pm10Grade"),
+            pm25Grade = air?.takeUnless { it.isNull("pm25Grade") }?.getInt("pm25Grade"),
+        )
+    }
+
+    private fun baseWeather(json: JSONObject) = CurrentWeather(
         location = json.getString("location"),
         latitude = json.getDouble("latitude"),
         longitude = json.getDouble("longitude"),

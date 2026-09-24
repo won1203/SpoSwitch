@@ -49,6 +49,7 @@ internal fun FeatureUiScope.weatherCard() {
                     "습도 ${weather.humidityPercent}% · 풍속 ${weather.windSpeedText}"
                 }
                 ui.add(details, ui.text(currentDetails, 12), top = 5)
+                ui.add(details, ui.text(weather.airQualityText, 12), top = 3)
                 body.addView(details, LinearLayout.LayoutParams(0, -2, 1f).apply { leftMargin = ui.dp(12) })
                 ui.add(box, body, top = 2)
             }

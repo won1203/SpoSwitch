@@ -3,6 +3,11 @@ spring:
     name: backend
 
 external-api:
+  # 국민체육진흥공단 전국체육시설. data.go.kr 키는 계정당 하나라 따로 지정하지 않으면 기상청 키를 씁니다.
+  sports-facility:
+    base-url: https://apis.data.go.kr/B551014/SRVC_API_SFMS_FACI
+    service-key: ${SPORTS_FACILITY_SERVICE_KEY:${KMA_SERVICE_KEY}}
+
   # 카카오맵 API
   kakao:
     base-url: https://dapi.kakao.com
@@ -15,3 +20,8 @@ external-api:
   fitness100:
     base-url: https://apis.data.go.kr/B551014/SRVC_TODZ_VDO_PKG
     service-key: ${FITNESS100_SERVICE_KEY}
+
+  # data.go.kr 인증키는 계정당 하나라 따로 지정하지 않으면 기상청 키를 씁니다.
+  airkorea:
+    base-url: https://apis.data.go.kr/B552584/ArpltnInforInqireSvc
+    service-key: ${AIRKOREA_SERVICE_KEY:${KMA_SERVICE_KEY}}
