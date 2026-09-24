@@ -15,7 +15,26 @@ internal data class CurrentWeather(
     val precipitationAmount: String,
     val forecastAt: String,
     val source: String,
+    val airStation: String? = null,
+    val pm10Grade: Int? = null,
+    val pm25Grade: Int? = null,
 ) {
+    /** Missing air data reads as "정보 없음", never as 좋음. */
+    val airQualityText: String
+        get() = if (airStation == null) {
+            "미세먼지 정보 없음"
+        } else {
+            "미세먼지 ${gradeLabel(pm10Grade)} · 초미세먼지 ${gradeLabel(pm25Grade)} · $airStation 측정소"
+        }
+
+    private fun gradeLabel(grade: Int?) = when (grade) {
+        1 -> "좋음"
+        2 -> "보통"
+        3 -> "나쁨"
+        4 -> "매우나쁨"
+        else -> "정보 없음"
+    }
+
     val temperatureText: String
         get() = if (temperatureC % 1.0 == 0.0) {
             String.format(Locale.KOREA, "%.0f°", temperatureC)
