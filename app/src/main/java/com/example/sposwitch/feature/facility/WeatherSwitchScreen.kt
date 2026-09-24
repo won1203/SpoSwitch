@@ -3,10 +3,10 @@ package com.example.sposwitch.feature.facility
 import com.example.sposwitch.R
 import com.example.sposwitch.app.FeatureUiScope
 import com.example.sposwitch.data.mock.MockContent
-import com.example.sposwitch.ui.component.facilityMap
-import com.example.sposwitch.ui.component.facilityRow
 
 internal object WeatherSwitchScreen {
+    private const val INDOOR_PREVIEW = 3
+
     fun render(scope: FeatureUiScope) = with(scope) {
         val weather = state.weather
         ui.note(
@@ -17,12 +17,17 @@ internal object WeatherSwitchScreen {
         ui.gap(content, 20)
         ui.add(content, ui.text("장소를 바꿔도,\n운동은 계속", 28, bold = true))
         ui.add(content, ui.text("${state.location}\n가까운 실내 공간을 모았어요.", 14, ui.muted), top = 10)
-        ui.gap(content, 20)
-        facilityMap("실내")
         ui.gap(content, 22)
         ui.section(content, "반경 3km 실내 시설")
-        facilityRow(1)
-        facilityRow(2)
+        val goal = if (state.profileComplete && FacilityStore.goalOnly) FacilityStore.goalToCode(state.goal) else null
+        nearbyFacilities("INDOOR", goal)?.let { result ->
+            if (result.items.isEmpty()) {
+                ui.add(content, ui.text("반경 3km 안에 실내 시설이 없어요.", 14, ui.muted), top = 8)
+            }
+            val preview = result.items.take(INDOOR_PREVIEW)
+            if (preview.isNotEmpty()) facilityMap(preview, height = 200)
+            preview.forEach { nearbyFacilityRow(it) }
+        }
         ui.gap(content, 16)
         ui.section(content, "함께 하면 좋은 운동")
         ui.add(content, ui.button(MockContent.exercise(true, state.goal), false, R.drawable.ic_play_arrow) {

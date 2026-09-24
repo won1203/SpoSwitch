@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -9,6 +11,15 @@ plugins {
 val releaseBackendBaseUrl = providers.gradleProperty("SPO_SWITCH_RELEASE_API_BASE_URL")
     .orElse(providers.environmentVariable("SPO_SWITCH_RELEASE_API_BASE_URL"))
     .orElse("")
+    .get()
+
+// Kakao Map native app key. Keep it out of git: local.properties, a Gradle property, or an env var.
+val localProperties = Properties().apply {
+    rootProject.file("local.properties").takeIf { it.exists() }?.inputStream()?.use { load(it) }
+}
+val kakaoNativeAppKey = providers.gradleProperty("KAKAO_NATIVE_APP_KEY")
+    .orElse(providers.environmentVariable("KAKAO_NATIVE_APP_KEY"))
+    .orElse(localProperties.getProperty("KAKAO_NATIVE_APP_KEY", ""))
     .get()
 
 fun buildConfigString(value: String) = "\"" + value.replace("\\", "\\\\")
@@ -27,6 +38,7 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         manifestPlaceholders["usesCleartextTraffic"] = "false"
+        buildConfigField("String", "KAKAO_NATIVE_APP_KEY", buildConfigString(kakaoNativeAppKey))
     }
 
     buildTypes {
@@ -64,6 +76,7 @@ dependencies {
     implementation(libs.androidx.constraintlayout)
     implementation(libs.androidx.navigation.fragment.ktx)
     implementation(libs.androidx.navigation.ui.ktx)
+    implementation(libs.kakao.map)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
