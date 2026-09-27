@@ -22,6 +22,7 @@ import com.kakao.vectormap.KakaoMapSdk
 import com.kakao.vectormap.LatLng
 import com.kakao.vectormap.MapLifeCycleCallback
 import com.kakao.vectormap.MapView
+import com.kakao.vectormap.camera.CameraUpdateFactory
 import com.kakao.vectormap.label.LabelOptions
 import com.kakao.vectormap.label.LabelStyle
 import com.kakao.vectormap.label.LabelStyles
@@ -121,6 +122,13 @@ private fun FeatureUiScope.kakaoMapView(
                     navigate(AppRoute.FACILITY_DETAIL)
                 }
                 true
+            }
+            // A fixed zoom hides facilities near the edge of the 3 km radius, so frame every pin.
+            if (focus == null) {
+                val points = facilities.map { LatLng.from(it.latitude, it.longitude) } + listOfNotNull(me)
+                if (points.size > 1) {
+                    map.moveCamera(CameraUpdateFactory.fitMapPoints(points.toTypedArray(), ui.dp(32)))
+                }
             }
         }
     })
