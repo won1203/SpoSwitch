@@ -9,7 +9,6 @@ import com.example.sposwitch.R
 import com.example.sposwitch.app.AppRoute
 import com.example.sposwitch.app.FeatureUiScope
 import com.example.sposwitch.app.WeatherLoadState
-import com.example.sposwitch.data.mock.MockContent
 import com.example.sposwitch.model.ExerciseEnvironment
 import com.google.android.material.materialswitch.MaterialSwitch
 
@@ -125,24 +124,6 @@ internal fun FeatureUiScope.exerciseHero(environment: ExerciseEnvironment) {
     ui.add(content, frame, 215)
 }
 
-internal fun FeatureUiScope.facilityRow(index: Int, compact: Boolean = false) {
-    val facility = MockContent.facilities[index]
-    val row = ui.row().apply {
-        setPadding(0, ui.dp(if (compact) 6 else 12), 0, ui.dp(if (compact) 6 else 12))
-    }
-    row.addView(ui.image(facility.image), LinearLayout.LayoutParams(ui.dp(86), ui.dp(if (compact) 52 else 68)))
-    val words = ui.column()
-    ui.add(words, ui.text(facility.name, 16, bold = true))
-    ui.add(words, ui.text("${facility.category} · ${facility.distance}", 13, ui.muted), top = 7)
-    row.addView(words, LinearLayout.LayoutParams(0, -2, 1f).apply { leftMargin = ui.dp(14) })
-    row.addView(ui.icon(R.drawable.ic_chevron_right, ui.muted, 22))
-    ui.click(row, "${facility.name}, ${facility.category}, ${facility.distance}, 상세 보기") {
-        state.selectedFacility = index
-        navigate(AppRoute.FACILITY_DETAIL)
-    }
-    ui.add(content, row)
-}
-
 internal fun FeatureUiScope.choiceChips(values: List<String>, selected: String, action: (String) -> Unit) {
     val scroller = HorizontalScrollView(activity).apply { isHorizontalScrollBarEnabled = false }
     val row = ui.row()
@@ -151,39 +132,6 @@ internal fun FeatureUiScope.choiceChips(values: List<String>, selected: String, 
     }
     scroller.addView(row)
     ui.add(content, scroller)
-}
-
-internal fun FeatureUiScope.facilityMap(category: String) {
-    val frame = FrameLayout(activity).apply {
-        background = ui.surface()
-        clipToOutline = true
-    }
-    frame.addView(ui.image(R.drawable.neighborhood_map), FrameLayout.LayoutParams(-1, -1))
-    if (category != "야외") {
-        listOf(1 to (Gravity.TOP or Gravity.START), 2 to (Gravity.BOTTOM or Gravity.END)).forEach { (index, gravity) ->
-            val pin = ui.chip(MockContent.facilities[index].name, true) {
-                state.selectedFacility = index
-                navigate(AppRoute.FACILITY_DETAIL)
-            }
-            frame.addView(pin, FrameLayout.LayoutParams(-2, -2, gravity).apply {
-                setMargins(ui.dp(16), ui.dp(16), ui.dp(16), ui.dp(32))
-            })
-        }
-    }
-    if (category != "실내") {
-        frame.addView(ui.chip("서서울호수공원", true) {
-            state.selectedFacility = 0
-            navigate(AppRoute.FACILITY_DETAIL)
-        }, FrameLayout.LayoutParams(-2, -2, Gravity.CENTER))
-    }
-    val label = ui.text("개념 지도 · 반경 3km", 11).apply {
-        background = ui.surface(ui.white, 8)
-        setPadding(ui.dp(8), ui.dp(5), ui.dp(8), ui.dp(5))
-    }
-    frame.addView(label, FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM or Gravity.START).apply {
-        setMargins(ui.dp(10), 0, 0, ui.dp(8))
-    })
-    ui.add(content, frame, 220)
 }
 
 internal fun FeatureUiScope.summaryRow(parent: LinearLayout, label: String, value: String) {

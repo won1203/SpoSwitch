@@ -5,16 +5,20 @@ import com.example.sposwitch.R
 import com.example.sposwitch.app.AppRoute
 import com.example.sposwitch.app.FeatureUiScope
 import com.example.sposwitch.domain.RecommendationPolicy
+import com.example.sposwitch.feature.facility.FacilityStore
+import com.example.sposwitch.feature.facility.nearbyFacilities
+import com.example.sposwitch.feature.facility.nearbyFacilityRow
 import com.example.sposwitch.model.ExerciseEnvironment
 import com.example.sposwitch.model.ExercisePlacePreference
 import com.example.sposwitch.model.ExerciseRecommendation
 import com.example.sposwitch.model.RecommendationReason
 import com.example.sposwitch.ui.component.exerciseHero
-import com.example.sposwitch.ui.component.facilityRow
 import com.example.sposwitch.ui.component.profileSetupCard
 import com.example.sposwitch.ui.component.weatherCard
 
 internal object HomeScreen {
+    private const val HOME_PREVIEW = 2
+
     fun render(scope: FeatureUiScope) = with(scope) {
         weatherCard()
         ui.gap(content, 22)
@@ -69,7 +73,7 @@ internal object HomeScreen {
                 state.facilityFilter = if (indoor) "실내" else "야외"
                 navigate(AppRoute.FACILITIES)
             }
-            facilityRow(if (indoor) 1 else 0, compact = true)
+            homeFacilityPreview(indoor)
             ui.divider(content, 8)
         }
 
@@ -79,6 +83,23 @@ internal object HomeScreen {
             recommendationMessage(recommendation),
             state.weather?.icon ?: R.drawable.ic_sunny,
         ) { navigate(AppRoute.WEATHER) }
+    }
+
+    /** Same nearby-facility data as the facility tab, trimmed to the closest few for the home card. */
+    private fun FeatureUiScope.homeFacilityPreview(indoor: Boolean) {
+        val profile = state.profile
+        val goal = if (profile.isComplete && FacilityStore.goalOnly) {
+            FacilityStore.goalToCode(profile.goal)
+        } else {
+            null
+        }
+        val result = nearbyFacilities(if (indoor) "INDOOR" else "OUTDOOR", goal) ?: return
+        if (result.items.isEmpty()) {
+            val place = if (indoor) "실내" else "야외"
+            ui.add(content, ui.text("반경 3km 안에 조건에 맞는 $place 시설이 없어요.", 14, ui.muted), top = 8)
+            return
+        }
+        result.items.take(HOME_PREVIEW).forEach { nearbyFacilityRow(it) }
     }
 
     private fun recommendationMessage(recommendation: ExerciseRecommendation): String =
