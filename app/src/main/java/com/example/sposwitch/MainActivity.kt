@@ -369,6 +369,15 @@ class MainActivity : AppCompatActivity() {
             if (requestId != weatherRequestId) return@getCurrentLocation
             locationResult.fold(
                 onSuccess = { location ->
+                    state.location = "현재 위치 확인됨"
+                    render()
+                    weatherApiClient.getCurrentLocationName(location.latitude, location.longitude) { nameResult ->
+                        if (requestId != weatherRequestId) return@getCurrentLocationName
+                        nameResult.onSuccess { name ->
+                            state.location = name
+                            render()
+                        }
+                    }
                     weatherApiClient.getCurrentWeather(location.latitude, location.longitude) { weatherResult ->
                         if (requestId != weatherRequestId) return@getCurrentWeather
                         weatherResult.fold(

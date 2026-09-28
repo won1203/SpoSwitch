@@ -62,6 +62,34 @@ internal class WeatherApiClient(
         }
     }
 
+    fun getCurrentLocationName(
+        latitude: Double,
+        longitude: Double,
+        callback: (Result<String>) -> Unit,
+    ) {
+        executor.execute {
+            val result = runCatching {
+                val endpoint = requestBaseUrl.trimEnd('/') +
+                    "/api/v1/weather/location?latitude=$latitude&longitude=$longitude"
+                val connection = (URL(endpoint).openConnection() as HttpURLConnection).apply {
+                    requestMethod = "GET"
+                    connectTimeout = 7_000
+                    readTimeout = 10_000
+                    setRequestProperty("Accept", "application/json")
+                }
+                try {
+                    val status = connection.responseCode
+                    if (status !in 200..299) error("위치 이름을 불러오지 못했습니다. ($status)")
+                    JSONObject(connection.inputStream.bufferedReader().use { it.readText() })
+                        .getString("location")
+                } finally {
+                    connection.disconnect()
+                }
+            }
+            mainHandler.post { callback(result) }
+        }
+    }
+
     fun close() {
         executor.shutdownNow()
     }
