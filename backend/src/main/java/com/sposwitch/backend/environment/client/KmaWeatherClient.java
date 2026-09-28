@@ -73,6 +73,10 @@ public class KmaWeatherClient {
                     HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8)
             );
             if (httpResponse.statusCode() < 200 || httpResponse.statusCode() >= 300) {
+                if (httpResponse.statusCode() == 403
+                        && httpResponse.body().contains("SERVICE_KEY_IS_NOT_REGISTERED_ERROR")) {
+                    throw new ExternalApiException("기상청 API 인증키가 등록되지 않았습니다. 서버의 KMA_SERVICE_KEY와 단기예보 조회서비스 활용 승인을 확인해 주세요.");
+                }
                 throw new ExternalApiException("기상청 날씨 API가 HTTP " + httpResponse.statusCode() + "을 반환했습니다.");
             }
             KmaResponse response = jsonMapper.readValue(httpResponse.body(), KmaResponse.class);

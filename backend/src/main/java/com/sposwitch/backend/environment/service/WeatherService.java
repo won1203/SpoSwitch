@@ -39,6 +39,7 @@ public class WeatherService {
         GridPoint gridPoint = gridConverter.convert(latitude, longitude);
         String location = kakaoLocalClient.findAdministrativeRegion(latitude, longitude);
         Forecast forecast = kmaWeatherClient.fetchUltraShortForecast(gridPoint);
+        AirQuality airQuality = findAirQuality(location);
 
         return new CurrentWeather(
                 location,
@@ -51,9 +52,13 @@ public class WeatherService {
                 forecast.windSpeedMps(),
                 forecast.precipitationAmount(),
                 forecast.forecastAt(),
-                "카카오 로컬 · 기상청 초단기예보 · 에어코리아",
-                findAirQuality(location)
+                airQuality == null ? "카카오 로컬 · 기상청 초단기예보" : "카카오 로컬 · 기상청 초단기예보 · 에어코리아",
+                airQuality
         );
+    }
+
+    public CurrentLocation getCurrentLocation(double latitude, double longitude) {
+        return new CurrentLocation(kakaoLocalClient.findAdministrativeRegion(latitude, longitude));
     }
 
     /** Air quality is optional: a failure here must not hide the weather, and missing stays null. */
@@ -67,7 +72,7 @@ public class WeatherService {
         try {
             return airKoreaClient.findByStation(parts[1]).orElse(null);
         } catch (ExternalApiException exception) {
-            log.warn("에어코리아 조회 실패: {}", exception.getMessage(), exception);
+            log.warn("에어코리아 조회 실패 (날씨는 제공): {}", exception.getMessage());
             return null;
         }
     }
@@ -86,5 +91,8 @@ public class WeatherService {
             String source,
             AirQuality airQuality
     ) {
+    }
+
+    public record CurrentLocation(String location) {
     }
 }

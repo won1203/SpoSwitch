@@ -2,6 +2,7 @@ package com.sposwitch.backend.environment.controller;
 
 import com.sposwitch.backend.environment.service.WeatherService;
 import com.sposwitch.backend.environment.service.WeatherService.CurrentWeather;
+import com.sposwitch.backend.environment.service.WeatherService.CurrentLocation;
 import jakarta.validation.constraints.DecimalMax;
 import jakarta.validation.constraints.DecimalMin;
 import org.springframework.validation.annotation.Validated;
@@ -27,5 +28,13 @@ public class WeatherController {
             @RequestParam @DecimalMin("-180.0") @DecimalMax("180.0") double longitude
     ) {
         return weatherService.getCurrentWeather(latitude, longitude);
+    }
+
+    @GetMapping("/location")
+    public CurrentLocation location(
+            @RequestParam @DecimalMin("-90.0") @DecimalMax("90.0") double latitude,
+            @RequestParam @DecimalMin("-180.0") @DecimalMax("180.0") double longitude
+    ) {
+        return weatherService.getCurrentLocation(latitude, longitude);
     }
 }
