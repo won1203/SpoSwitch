@@ -1,14 +1,17 @@
 package com.example.sposwitch.feature.facility
 
-import android.annotation.SuppressLint
+import android.app.Dialog
 import android.graphics.Bitmap
 import android.view.Gravity
-import android.view.MotionEvent
 import android.view.View
+import android.view.ViewGroup
 import android.widget.FrameLayout
+import android.widget.TextView
 import androidx.core.content.ContextCompat
 import androidx.core.graphics.drawable.DrawableCompat
 import androidx.core.graphics.drawable.toBitmap
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.LifecycleOwner
 import com.example.sposwitch.BuildConfig
@@ -22,6 +25,7 @@ import com.kakao.vectormap.KakaoMapSdk
 import com.kakao.vectormap.LatLng
 import com.kakao.vectormap.MapLifeCycleCallback
 import com.kakao.vectormap.MapView
+import com.kakao.vectormap.camera.CameraUpdateFactory
 import com.kakao.vectormap.label.LabelOptions
 import com.kakao.vectormap.label.LabelStyle
 import com.kakao.vectormap.label.LabelStyles
@@ -30,11 +34,11 @@ private const val MY_LOCATION_COLOR = 0xFF1E6FD9.toInt()
 private var kakaoSdkInitialized = false
 
 /**
- * Kakao map for the facility screens. Pins are the facilities passed in; tapping one opens its detail.
+ * Kakao map preview for the facility screens. The preview ignores touches so the screen scrolls normally;
+ * tapping it opens [openFullscreenMap], where the map pans and zooms freely and a pin tap opens its detail.
  * Needs KAKAO_NATIVE_APP_KEY (see app/build.gradle.kts), this build's key hash registered in Kakao Developers,
  * and the app's 카카오맵 service enabled.
  */
-@SuppressLint("ClickableViewAccessibility")
 internal fun FeatureUiScope.facilityMap(
     facilities: List<NearbyFacility>,
     focus: NearbyFacility? = null,
@@ -65,24 +69,79 @@ internal fun FeatureUiScope.facilityMap(
         frame.addView(kakaoMapView(facilities, focus) { error ->
             activity.runOnUiThread { showMessage("지도를 불러오지 못했어요.\n$error") }
         }, FrameLayout.LayoutParams(-1, -1))
+        // Covers the map so drags scroll the screen instead of fighting the map for the gesture.
+        frame.addView(View(activity).also { cover ->
+            ui.click(cover, "지도 크게 보기") { openFullscreenMap(facilities, focus) }
+        }, FrameLayout.LayoutParams(-1, -1))
+        frame.addView(
+            ui.text("크게 보기", 12, ui.green, true).apply {
+                background = ui.surface(ui.white, 999)
+                setPadding(ui.dp(12), ui.dp(6), ui.dp(12), ui.dp(6))
+                elevation = ui.dp(2).toFloat()
+            },
+            FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM or Gravity.END).apply { setMargins(0, 0, ui.dp(10), ui.dp(10)) },
+        )
     }
     frame.addView(message, FrameLayout.LayoutParams(-1, -1))
     ui.add(content, frame, height)
+    ui.add(content, mapLegend(if (focus == null) " · 지도를 누르면 크게 볼 수 있어요" else ""), top = 6)
+}
 
-    val legend = "● 실내  ● 야외  ● 내 위치" + if (focus == null) " · 핀을 누르면 상세로 이동해요" else ""
-    ui.add(content, ui.text(legend, 11, ui.muted).apply {
+/** Full-screen map in its own window, so vertical drags move the map rather than the screen behind it. */
+private fun FeatureUiScope.openFullscreenMap(facilities: List<NearbyFacility>, focus: NearbyFacility?) {
+    val dialog = Dialog(activity, android.R.style.Theme_Material_Light_NoActionBar)
+    val root = FrameLayout(activity).apply { setBackgroundColor(ui.white) }
+    root.addView(kakaoMapView(facilities, focus, onPin = { dialog.dismiss() }) { error ->
+        activity.runOnUiThread {
+            root.addView(ui.text("지도를 불러오지 못했어요.\n$error", 13, ui.muted).apply { gravity = Gravity.CENTER }, FrameLayout.LayoutParams(-1, -1))
+        }
+    }, FrameLayout.LayoutParams(-1, -1))
+    // Controls sit inside the system bars; the map itself stays edge to edge.
+    val overlay = FrameLayout(activity)
+    ViewCompat.setOnApplyWindowInsetsListener(overlay) { view, insets ->
+        val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout())
+        view.setPadding(bars.left, bars.top, bars.right, bars.bottom)
+        insets
+    }
+    root.addView(overlay, FrameLayout.LayoutParams(-1, -1))
+    overlay.addView(
+        ui.iconButton(R.drawable.ic_close, "지도 닫기") { dialog.dismiss() }.apply {
+            background = ui.surface(ui.white, 999)
+            elevation = ui.dp(3).toFloat()
+        },
+        FrameLayout.LayoutParams(ui.dp(48), ui.dp(48), Gravity.TOP or Gravity.START).apply { setMargins(ui.dp(16), ui.dp(16), 0, 0) },
+    )
+    val hint = if (focus == null) " · 핀을 누르면 상세로 이동해요" else ""
+    overlay.addView(
+        mapLegend(hint).apply {
+            background = ui.surface(ui.white, 999)
+            setPadding(ui.dp(14), ui.dp(8), ui.dp(14), ui.dp(8))
+            elevation = ui.dp(3).toFloat()
+        },
+        FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL).apply { bottomMargin = ui.dp(16) },
+    )
+    dialog.setContentView(root)
+    dialog.window?.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT)
+    // A dialog outliving its Activity leaks the window, e.g. on rotation.
+    activity.lifecycle.addObserver(object : DefaultLifecycleObserver {
+        override fun onDestroy(owner: LifecycleOwner) = dialog.dismiss()
+    })
+    dialog.show()
+}
+
+private fun FeatureUiScope.mapLegend(suffix: String): TextView =
+    ui.text("● 실내  ● 야외  ● 내 위치$suffix", 11, ui.muted).apply {
         text = android.text.SpannableString(text).apply {
             setSpan(android.text.style.ForegroundColorSpan(ui.green), 0, 1, 0)
             setSpan(android.text.style.ForegroundColorSpan(ui.accent), 6, 7, 0)
             setSpan(android.text.style.ForegroundColorSpan(MY_LOCATION_COLOR), 12, 13, 0)
         }
-    }, top = 6)
-}
+    }
 
-@SuppressLint("ClickableViewAccessibility")
 private fun FeatureUiScope.kakaoMapView(
     facilities: List<NearbyFacility>,
     focus: NearbyFacility?,
+    onPin: () -> Unit = {},
     onError: (String) -> Unit,
 ): MapView {
     val me = state.weather?.let { LatLng.from(it.latitude, it.longitude) }
@@ -116,11 +175,20 @@ private fun FeatureUiScope.kakaoMapView(
             map.setOnLabelClickListener { _, _, label ->
                 val facility = label.tag as? NearbyFacility
                 if (facility != null && facility != focus) {
+                    onPin()
                     FacilityStore.selected = facility
                     state.selectedFacility = FacilityStore.REAL_SELECTION
                     navigate(AppRoute.FACILITY_DETAIL)
                 }
                 true
+            }
+            // A fixed zoom hides facilities near the edge of the 3 km radius, so frame every pin.
+            // Padding exceeds the pin height: pins hang above their point and were clipped at the top edge.
+            if (focus == null) {
+                val points = facilities.map { LatLng.from(it.latitude, it.longitude) } + listOfNotNull(me)
+                if (points.size > 1) {
+                    map.moveCamera(CameraUpdateFactory.fitMapPoints(points.toTypedArray(), ui.dp(48)))
+                }
             }
         }
     })
@@ -138,13 +206,6 @@ private fun FeatureUiScope.kakaoMapView(
             mapView.finish()
         }
     })
-    // Let the map pan inside the screen's ScrollView.
-    mapView.setOnTouchListener { view, event ->
-        view.parent.requestDisallowInterceptTouchEvent(
-            event.action != MotionEvent.ACTION_UP && event.action != MotionEvent.ACTION_CANCEL,
-        )
-        false
-    }
     return mapView
 }
 
