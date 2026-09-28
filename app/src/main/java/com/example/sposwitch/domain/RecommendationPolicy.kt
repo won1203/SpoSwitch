@@ -26,6 +26,8 @@ internal object RecommendationPolicy {
         if (weather.temperatureC >= HOT_TEMPERATURE_C) add("폭염")
         if (weather.temperatureC <= COLD_TEMPERATURE_C) add("한파")
         if (weather.windSpeedMps >= STRONG_WIND_MPS) add("강풍")
+        if (weather.pm10Grade in 3..4) add("미세먼지")
+        if (weather.pm25Grade in 3..4) add("초미세먼지")
     }
 
     private fun userChoice(environment: ExerciseEnvironment) = ExerciseRecommendation(
@@ -33,7 +35,7 @@ internal object RecommendationPolicy {
         reason = RecommendationReason.USER_PREFERENCE,
     )
 
-    private fun weatherRecommendation(weather: CurrentWeather?): ExerciseRecommendation {
+    fun weatherRecommendation(weather: CurrentWeather?): ExerciseRecommendation {
         if (weather == null) {
             return ExerciseRecommendation(
                 environments = listOf(ExerciseEnvironment.INDOOR_FACILITY, ExerciseEnvironment.HOME),
@@ -41,16 +43,21 @@ internal object RecommendationPolicy {
             )
         }
         val risks = weatherRisks(weather)
-        return if (risks.isEmpty()) {
-            ExerciseRecommendation(
-                environments = listOf(ExerciseEnvironment.OUTDOOR),
-                reason = RecommendationReason.GOOD_WEATHER,
-            )
-        } else {
+        return if (risks.isNotEmpty()) {
             ExerciseRecommendation(
                 environments = listOf(ExerciseEnvironment.INDOOR_FACILITY, ExerciseEnvironment.HOME),
                 reason = RecommendationReason.WEATHER_RISK,
                 weatherRisks = risks,
+            )
+        } else if (weather.pm10Grade !in 1..4 || weather.pm25Grade !in 1..4) {
+            ExerciseRecommendation(
+                environments = listOf(ExerciseEnvironment.INDOOR_FACILITY, ExerciseEnvironment.HOME),
+                reason = RecommendationReason.WEATHER_UNAVAILABLE,
+            )
+        } else {
+            ExerciseRecommendation(
+                environments = listOf(ExerciseEnvironment.OUTDOOR, ExerciseEnvironment.INDOOR_FACILITY),
+                reason = RecommendationReason.GOOD_WEATHER,
             )
         }
     }
