@@ -24,6 +24,7 @@ import com.example.sposwitch.app.ExerciseLoadState
 import com.example.sposwitch.app.FeatureUiScope
 import com.example.sposwitch.app.WeatherLoadState
 import com.example.sposwitch.data.local.UserProfileRepository
+import com.example.sposwitch.domain.RecommendationPolicy
 import com.example.sposwitch.data.location.DeviceLocationProvider
 import com.example.sposwitch.data.remote.WeatherApiClient
 import com.example.sposwitch.data.remote.ExerciseApiClient
@@ -151,6 +152,10 @@ class MainActivity : AppCompatActivity() {
 
     private fun loadExerciseTabIfNeeded() {
         if (!state.profile.isComplete) return
+        // Opening the tab directly (not from a home card) should follow today's pick, not the OUTDOOR default.
+        if (state.exerciseLoadState == ExerciseLoadState.IDLE && state.planLoadState == ExerciseLoadState.IDLE) {
+            state.prescriptionEnvironment = RecommendationPolicy.recommend(state.profile, state.weather).primaryEnvironment
+        }
         when (route) {
             AppRoute.PRESCRIPTION -> if (state.exerciseLoadState == ExerciseLoadState.IDLE) refreshPrescription()
             AppRoute.PLAN -> if (state.planLoadState == ExerciseLoadState.IDLE) refreshPlan()
