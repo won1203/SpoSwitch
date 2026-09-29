@@ -18,6 +18,7 @@ import com.example.sposwitch.BuildConfig
 import com.example.sposwitch.R
 import com.example.sposwitch.app.AppRoute
 import com.example.sposwitch.app.FeatureUiScope
+import com.example.sposwitch.data.remote.isOnline
 import com.example.sposwitch.model.NearbyFacility
 import com.kakao.vectormap.KakaoMap
 import com.kakao.vectormap.KakaoMapReadyCallback
@@ -81,6 +82,7 @@ internal fun FeatureUiScope.facilityMap(
             },
             FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM or Gravity.END).apply { setMargins(0, 0, ui.dp(10), ui.dp(10)) },
         )
+        offlineNotice(frame)
     }
     frame.addView(message, FrameLayout.LayoutParams(-1, -1))
     ui.add(content, frame, height)
@@ -111,6 +113,7 @@ private fun FeatureUiScope.openFullscreenMap(facilities: List<NearbyFacility>, f
         },
         FrameLayout.LayoutParams(ui.dp(48), ui.dp(48), Gravity.TOP or Gravity.START).apply { setMargins(ui.dp(16), ui.dp(16), 0, 0) },
     )
+    offlineNotice(overlay, topMargin = 76)
     val hint = if (focus == null) " · 핀을 누르면 상세로 이동해요" else ""
     overlay.addView(
         mapLegend(hint).apply {
@@ -127,6 +130,19 @@ private fun FeatureUiScope.openFullscreenMap(facilities: List<NearbyFacility>, f
         override fun onDestroy(owner: LifecycleOwner) = dialog.dismiss()
     })
     dialog.show()
+}
+
+/** Kakao keeps showing cached tiles offline and reports no error, so say why the rest of the map is blank. */
+private fun FeatureUiScope.offlineNotice(parent: FrameLayout, topMargin: Int = 10) {
+    if (activity.isOnline()) return
+    parent.addView(
+        ui.text("인터넷에 연결되지 않아 지도가 일부만 보일 수 있어요.", 12, ui.green, true).apply {
+            background = ui.surface(ui.white, 999)
+            setPadding(ui.dp(12), ui.dp(6), ui.dp(12), ui.dp(6))
+            elevation = ui.dp(2).toFloat()
+        },
+        FrameLayout.LayoutParams(-2, -2, Gravity.TOP or Gravity.CENTER_HORIZONTAL).apply { this.topMargin = ui.dp(topMargin) },
+    )
 }
 
 private fun FeatureUiScope.mapLegend(suffix: String): TextView =
