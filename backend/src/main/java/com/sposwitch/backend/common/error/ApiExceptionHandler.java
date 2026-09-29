@@ -13,6 +13,7 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.server.ResponseStatusException;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
@@ -43,6 +44,11 @@ public class ApiExceptionHandler {
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     ResponseEntity<Map<String, Object>> handleTypeMismatch(MethodArgumentTypeMismatchException exception) {
         return error(HttpStatus.BAD_REQUEST, "요청 값의 형식이 올바르지 않습니다: " + exception.getName());
+    }
+
+    @ExceptionHandler(ResponseStatusException.class)
+    ResponseEntity<Map<String, Object>> handleStatus(ResponseStatusException exception) {
+        return error(HttpStatus.valueOf(exception.getStatusCode().value()), exception.getReason());
     }
 
     @ExceptionHandler(MissingServletRequestParameterException.class)
