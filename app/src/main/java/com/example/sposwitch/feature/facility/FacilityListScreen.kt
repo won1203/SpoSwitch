@@ -6,6 +6,8 @@ import com.example.sposwitch.R
 import com.example.sposwitch.app.AppRoute
 import com.example.sposwitch.app.FeatureUiScope
 import com.example.sposwitch.domain.RecommendationPolicy
+import com.example.sposwitch.model.ExerciseEnvironment
+import com.example.sposwitch.model.RecommendationReason
 import com.example.sposwitch.model.NearbyFacilities
 import com.example.sposwitch.model.NearbyFacility
 import com.example.sposwitch.ui.component.choiceChips
@@ -16,10 +18,11 @@ internal object FacilityListScreen {
         ui.add(content, ui.text("${state.location} · 반경 3km", 14, ui.muted), top = 9)
         ui.gap(content, 20)
 
-        // Bad weather opens the list on indoor facilities until the user picks a filter themselves.
-        val indoorByWeather = state.weather?.let { RecommendationPolicy.weatherRisks(it).isNotEmpty() } == true
-        if (indoorByWeather && !FacilityStore.filterTouched && state.facilityFilter == "전체") {
-            state.facilityFilter = "실내"
+        // The automatic filter follows weather changes until the user chooses a filter themselves.
+        val recommendation = RecommendationPolicy.weatherRecommendation(state.weather)
+        val indoorByWeather = ExerciseEnvironment.OUTDOOR !in recommendation.environments
+        if (!FacilityStore.filterTouched) {
+            state.facilityFilter = if (indoorByWeather) "실내" else "전체"
         }
         choiceChips(listOf("전체", "야외", "실내"), state.facilityFilter) {
             state.facilityFilter = it
@@ -27,7 +30,12 @@ internal object FacilityListScreen {
             rerender()
         }
         if (indoorByWeather) {
-            ui.add(content, ui.text("현재 날씨를 고려해 실내 시설을 먼저 보여드려요.", 13, ui.accent, true), top = 10)
+            val message = if (recommendation.reason == RecommendationReason.WEATHER_RISK) {
+                "${recommendation.weatherRisks.joinToString("·")} 때문에 실내 시설을 추천해요."
+            } else {
+                "날씨·대기 정보를 모두 확인하기 전에는 실내 시설을 추천해요."
+            }
+            ui.add(content, ui.text(message, 13, ui.accent, true), top = 10)
         }
         ui.gap(content, 12)
         val goal = goalFilter()

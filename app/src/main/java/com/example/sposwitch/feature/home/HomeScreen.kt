@@ -63,14 +63,15 @@ internal object HomeScreen {
             }, top = 12)
         }
 
-        val facilityEnvironment = recommendation.environments.firstOrNull {
+        val facilityEnvironments = recommendation.environments.filter {
             it == ExerciseEnvironment.INDOOR_FACILITY || it == ExerciseEnvironment.OUTDOOR
         }
-        if (facilityEnvironment != null) {
+        facilityEnvironments.forEach { facilityEnvironment ->
             val indoor = facilityEnvironment == ExerciseEnvironment.INDOOR_FACILITY
             ui.gap(content, 20)
             ui.section(content, if (indoor) "오늘은 가까운 실내 시설" else "오늘은 가까운 야외 시설") {
                 state.facilityFilter = if (indoor) "실내" else "야외"
+                FacilityStore.filterTouched = true
                 navigate(AppRoute.FACILITIES)
             }
             homeFacilityPreview(indoor)
@@ -104,11 +105,11 @@ internal object HomeScreen {
 
     private fun recommendationMessage(recommendation: ExerciseRecommendation): String =
         when (recommendation.reason) {
-            RecommendationReason.GOOD_WEATHER -> "현재 날씨가 운동하기 좋아 야외 운동과 시설을 추천했어요."
+            RecommendationReason.GOOD_WEATHER -> "현재 날씨와 대기 상태가 운동하기 좋아 실내·야외 운동과 시설을 함께 추천했어요."
             RecommendationReason.WEATHER_RISK ->
                 "${recommendation.weatherRisks.joinToString("·")} 때문에 실내 시설과 무기구 집 운동을 추천했어요."
             RecommendationReason.WEATHER_UNAVAILABLE ->
-                "날씨를 확인하기 전에는 실내 시설과 무기구 집 운동을 우선 추천해요."
+                "날씨·대기 정보를 모두 확인하기 전에는 실내 시설과 무기구 집 운동을 추천해요."
             RecommendationReason.USER_PREFERENCE ->
                 "선택한 운동 장소에 맞춰 ${recommendation.primaryEnvironment.label}을 추천했어요."
         }

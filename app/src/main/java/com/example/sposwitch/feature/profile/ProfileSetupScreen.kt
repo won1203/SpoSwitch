@@ -103,7 +103,7 @@ internal object ProfileSetupScreen {
             )
             rerender()
         }
-        ui.add(content, ui.text("‘날씨에 맞게 추천’을 선택하면 좋은 날에는 야외 운동을, 악천후에는 실내 시설과 무기구 집 운동을 추천해요.", 12, ui.muted), top = 10)
+        ui.add(content, ui.text("‘날씨에 맞게 추천’을 선택하면 날씨와 대기 상태가 좋은 날에는 실내·야외 운동을 함께, 악천후나 미세먼지가 나쁜 날에는 실내 시설과 무기구 집 운동을 추천해요.", 12, ui.muted), top = 10)
         if (state.profile.placePreference == ExercisePlacePreference.HOME) {
             ui.gap(content, 24)
             ui.section(content, "집에서 사용할 수 있는 기구")

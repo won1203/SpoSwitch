@@ -4,6 +4,7 @@ import com.example.sposwitch.R
 import com.example.sposwitch.app.AppRoute
 import com.example.sposwitch.app.FeatureUiScope
 import com.example.sposwitch.domain.RecommendationPolicy
+import com.example.sposwitch.model.RecommendationReason
 import com.example.sposwitch.ui.component.summaryRow
 import com.example.sposwitch.ui.component.weatherCard
 
@@ -25,14 +26,16 @@ internal object WeatherScreen {
             ui.add(content, details)
 
             ui.gap(content, 20)
-            val risks = RecommendationPolicy.weatherRisks(weather)
-            if (risks.isNotEmpty()) {
-                ui.note(content, "${risks.joinToString("·")} 때문에 실내 시설과 집 운동을 추천해요.", weather.icon)
-                ui.add(content, ui.button("오늘 추천 확인하기") { navigate(AppRoute.HOME, asTab = true) }, top = 16)
-            } else {
-                ui.note(content, "현재 날씨가 운동하기 좋아 야외 운동이 가능해요.", weather.icon)
-                ui.add(content, ui.button("오늘의 홈 보기") { navigate(AppRoute.HOME, asTab = true) }, top = 16)
+            val recommendation = RecommendationPolicy.weatherRecommendation(weather)
+            val message = when (recommendation.reason) {
+                RecommendationReason.WEATHER_RISK ->
+                    "${recommendation.weatherRisks.joinToString("·")} 때문에 실내 시설과 집 운동을 추천해요."
+                RecommendationReason.GOOD_WEATHER ->
+                    "현재 날씨와 대기 상태가 운동하기 좋아 실내·야외 운동을 함께 추천해요."
+                else -> "대기 정보를 모두 확인하지 못해 실내 시설과 집 운동을 추천해요."
             }
+            ui.note(content, message, weather.icon)
+            ui.add(content, ui.button("오늘 추천 확인하기") { navigate(AppRoute.HOME, asTab = true) }, top = 16)
         }
         ui.add(content, ui.button("현재 위치 다시 확인", false, R.drawable.ic_near_me) { refreshWeather() }, top = 20)
     }

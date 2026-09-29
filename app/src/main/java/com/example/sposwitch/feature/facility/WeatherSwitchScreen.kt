@@ -2,6 +2,7 @@ package com.example.sposwitch.feature.facility
 
 import com.example.sposwitch.R
 import com.example.sposwitch.app.FeatureUiScope
+import com.example.sposwitch.domain.RecommendationPolicy
 import com.example.sposwitch.model.ExerciseEnvironment
 
 internal object WeatherSwitchScreen {
@@ -9,9 +10,10 @@ internal object WeatherSwitchScreen {
 
     fun render(scope: FeatureUiScope) = with(scope) {
         val weather = state.weather
+        val risks = weather?.let { RecommendationPolicy.weatherRisks(it) }.orEmpty()
         ui.note(
             content,
-            weather?.let { "${it.condition} 예보가 있어 실내 운동으로 바꿨어요." } ?: "현재 날씨에 맞춰 실내 운동을 추천해요.",
+            if (risks.isNotEmpty()) "${risks.joinToString("·")} 때문에 실내 운동을 추천해요." else "실내에서 운동을 이어갈 수 있는 장소를 모았어요.",
             weather?.icon ?: R.drawable.ic_rainy,
         )
         ui.gap(content, 20)
