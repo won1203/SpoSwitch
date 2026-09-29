@@ -37,6 +37,6 @@ internal object WeatherScreen {
             ui.note(content, message, weather.icon)
             ui.add(content, ui.button("오늘 추천 확인하기") { navigate(AppRoute.HOME, asTab = true) }, top = 16)
         }
-        ui.add(content, ui.button("현재 위치 다시 확인", false, R.drawable.ic_near_me) { refreshWeather() }, top = 20)
+        ui.add(content, ui.button("현재 위치 다시 확인", false, R.drawable.ic_near_me) { useDeviceLocation() }, top = 20)
     }
 }

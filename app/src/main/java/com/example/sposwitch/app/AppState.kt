@@ -26,6 +26,11 @@ internal data class AppState(
     var weatherError: String? = null,
     var facilityFilter: String = "전체",
     var location: String = "현재 위치 확인 중",
+    /** Coordinates of the device fix or picked district; facilities use these so they work even if weather fails. */
+    var latitude: Double? = null,
+    var longitude: Double? = null,
+    /** Seoul district chosen by hand; while set, weather and facilities use it instead of device location. */
+    var manualDistrict: String? = null,
     var notificationsEnabled: Boolean = true,
     var profileStep: Int = 0,
     var selectedFacility: Int = 0,

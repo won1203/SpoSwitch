@@ -144,7 +144,7 @@ private fun FeatureUiScope.kakaoMapView(
     onPin: () -> Unit = {},
     onError: (String) -> Unit,
 ): MapView {
-    val me = state.weather?.let { LatLng.from(it.latitude, it.longitude) }
+    val me = state.latitude?.let { latitude -> state.longitude?.let { LatLng.from(latitude, it) } }
     val center = focus?.let { LatLng.from(it.latitude, it.longitude) } ?: me ?: LatLng.from(37.5665, 126.9780)
     val mapView = MapView(activity)
     mapView.contentDescription = if (focus != null) "${focus.name} 위치 지도" else "주변 운동 시설 지도"

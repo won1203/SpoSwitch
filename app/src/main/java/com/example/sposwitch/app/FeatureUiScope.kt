@@ -16,6 +16,8 @@ internal class FeatureUiScope(
     private val renderAction: () -> Unit,
     private val prescriptionAction: (ExerciseEnvironment) -> Unit,
     private val weatherRefreshAction: () -> Unit,
+    private val districtChooseAction: () -> Unit,
+    private val deviceLocationAction: () -> Unit,
     private val profileSaveAction: () -> Unit,
     private val prescriptionRefreshAction: () -> Unit,
     private val planRefreshAction: () -> Unit,
@@ -26,6 +28,8 @@ internal class FeatureUiScope(
     fun rerender() = renderAction()
     fun openPrescription(environment: ExerciseEnvironment) = prescriptionAction(environment)
     fun refreshWeather() = weatherRefreshAction()
+    fun chooseDistrict() = districtChooseAction()
+    fun useDeviceLocation() = deviceLocationAction()
     fun saveProfile() = profileSaveAction()
     fun refreshPrescription() = prescriptionRefreshAction()
     fun refreshPlan() = planRefreshAction()

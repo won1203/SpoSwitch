@@ -56,6 +56,9 @@ internal fun FeatureUiScope.weatherCard() {
         WeatherLoadState.ERROR -> {
             ui.add(box, ui.text(state.weatherError ?: "날씨 정보를 불러오지 못했습니다.", 14, ui.muted), top = 8)
             ui.add(box, ui.button("다시 시도", false, R.drawable.ic_near_me) { refreshWeather() }, top = 12)
+            if (state.manualDistrict == null) {
+                ui.add(box, ui.button("서울 지역 직접 선택", false, R.drawable.ic_location_on) { chooseDistrict() }, top = 8)
+            }
         }
         WeatherLoadState.IDLE, WeatherLoadState.LOADING -> {
             val loading = ui.row().apply {
