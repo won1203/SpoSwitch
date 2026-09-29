@@ -62,6 +62,7 @@ class MainActivity : AppCompatActivity() {
         if (permissions.values.any { it }) {
             requestDeviceLocation()
         } else {
+            state.location = "위치 권한 필요"
             showWeatherError("현재 위치의 날씨를 표시하려면 위치 권한이 필요합니다.")
         }
     }
@@ -392,7 +393,10 @@ class MainActivity : AppCompatActivity() {
                         )
                     }
                 },
-                onFailure = { showWeatherError(it.message ?: "현재 위치를 확인하지 못했습니다.") },
+                onFailure = {
+                    state.location = "위치를 확인하지 못함"
+                    showWeatherError(it.message ?: "현재 위치를 확인하지 못했습니다.")
+                },
             )
         }
     }
