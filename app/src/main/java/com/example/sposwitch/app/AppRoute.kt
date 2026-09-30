@@ -16,7 +16,7 @@ internal enum class AppRoute(val key: String, val title: String) {
 
     val bottomDestination: AppRoute
         get() = when (this) {
-            FACILITIES, FACILITY_DETAIL, WEATHER_SWITCH -> FACILITIES
+            FACILITIES, FACILITY_DETAIL -> FACILITIES
             PROFILE, PROFILE_SETUP -> PROFILE
             PRESCRIPTION -> PRESCRIPTION
             PLAN -> PLAN
