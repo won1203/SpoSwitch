@@ -14,7 +14,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
+import org.springframework.web.server.ResponseStatusException;
 
 /**
  * Keeps Seoul facilities in memory and answers radius searches.
@@ -71,9 +73,11 @@ public class FacilityCatalog {
             reloadInBackground();
         }
         if (snapshot == null) {
-            throw new ExternalApiException(lastError != null && !loading.get()
-                    ? lastError
-                    : "시설 정보를 불러오는 중입니다. 잠시 후 다시 시도해 주세요.");
+            if (lastError != null && !loading.get()) {
+                throw new ExternalApiException(lastError);
+            }
+            // Still loading after startup is not an upstream failure: 503 tells clients to retry shortly.
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "시설 정보를 불러오는 중입니다. 잠시 후 다시 시도해 주세요.");
         }
         return snapshot;
     }

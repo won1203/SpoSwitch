@@ -23,6 +23,7 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import com.example.sposwitch.R
+import com.example.sposwitch.data.remote.isOnline
 
 /** Plays the public exercise file as a stream inside the app. */
 class ExerciseVideoActivity : AppCompatActivity() {
@@ -187,7 +188,12 @@ class ExerciseVideoActivity : AppCompatActivity() {
             showError("재생할 영상 주소가 올바르지 않습니다.")
             return
         }
+        if (!isOnline()) {
+            showError("인터넷에 연결되어 있지 않아 영상을 재생할 수 없어요.", retry = true)
+            return
+        }
         videoView.setOnPreparedListener { player ->
+            handler.removeCallbacks(prepareTimeout)
             mediaPlayer = player
             player.setOnSeekCompleteListener {
                 val completedTarget = activeSeekPosition
@@ -216,10 +222,20 @@ class ExerciseVideoActivity : AppCompatActivity() {
             updatePlaybackUi()
         }
         videoView.setOnErrorListener { _, _, _ ->
-            showError("영상을 재생할 수 없습니다. 네트워크 연결을 확인해 주세요.")
+            handler.removeCallbacks(prepareTimeout)
+            showError("영상을 재생할 수 없습니다. 네트워크 연결을 확인해 주세요.", retry = true)
             true
         }
         videoView.setVideoURI(uri)
+        handler.postDelayed(prepareTimeout, PREPARE_TIMEOUT_MS)
+    }
+
+    // VideoView only reports a dead connection after about a minute; give up sooner and offer a retry.
+    private val prepareTimeout = Runnable {
+        if (!prepared) {
+            videoView.stopPlayback()
+            showError("영상을 불러오지 못했어요. 연결 상태를 확인해 주세요.", retry = true)
+        }
     }
 
     override fun onResume() {
@@ -247,14 +263,16 @@ class ExerciseVideoActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         handler.removeCallbacks(updateProgress)
+        handler.removeCallbacks(prepareTimeout)
         mediaPlayer = null
         videoView.stopPlayback()
         super.onDestroy()
     }
 
-    private fun showError(message: String) {
+    private fun showError(message: String, retry: Boolean = false) {
         progressBar.visibility = View.GONE
-        statusView.text = message
+        statusView.text = if (retry) "$message\n\n눌러서 다시 시도" else message
+        statusView.setOnClickListener(if (retry) View.OnClickListener { recreate() } else null)
         statusView.visibility = View.VISIBLE
         prepared = false
         pendingSeekPosition = null
@@ -361,6 +379,7 @@ class ExerciseVideoActivity : AppCompatActivity() {
         const val EXTRA_TITLE = "exercise_title"
         const val EXTRA_VIDEO_URL = "exercise_video_url"
         private const val SKIP_MILLISECONDS = 10_000
+        private const val PREPARE_TIMEOUT_MS = 15_000L
         private const val STATE_AT_END = "playback_at_end"
         private const val STATE_POSITION = "playback_position"
         private const val STATE_PLAYING = "playback_playing"

@@ -31,7 +31,14 @@ internal class UserProfileRepository(context: Context) {
             .apply()
     }
 
+    fun loadDistrict(): String? = preferences.getString(KEY_DISTRICT, null)
+
+    fun saveDistrict(name: String?) {
+        preferences.edit().putString(KEY_DISTRICT, name).apply()
+    }
+
     private companion object {
+        const val KEY_DISTRICT = "manual_district"
         const val KEY_AGE = "age"
         const val KEY_FITNESS_LEVEL = "fitness_level"
         const val KEY_GOAL = "goal"

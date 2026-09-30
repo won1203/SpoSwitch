@@ -13,6 +13,7 @@ import com.example.sposwitch.model.ExercisePlanWeek
 import com.example.sposwitch.model.ExerciseVideo
 import com.example.sposwitch.model.ExerciseVideoResult
 import com.example.sposwitch.model.UserProfile
+import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
@@ -32,18 +33,26 @@ internal class ExerciseApiClient(private val baseUrl: String = BuildConfig.BACKE
     ) {
         executor.execute {
             val result = runCatching { parseRecommendations(request("recommendations", profile, environment)) }
-            mainHandler.post { callback(result) }
+            mainHandler.post { callback(result.withReadableNetworkError()) }
         }
     }
 
     fun plan(profile: UserProfile, environment: ExerciseEnvironment, callback: (Result<ExercisePlan>) -> Unit) {
         executor.execute {
             val result = runCatching { parsePlan(request("plan", profile, environment)) }
-            mainHandler.post { callback(result) }
+            mainHandler.post { callback(result.withReadableNetworkError()) }
         }
     }
 
     fun close() = executor.shutdownNow()
+
+    // Raw IOException text ("Failed to connect to /127.0.0.1:8080") was shown to users; match the weather card's wording.
+    private fun <T> Result<T>.withReadableNetworkError(): Result<T> = recoverCatching { error ->
+        if (error is IOException) {
+            throw IllegalStateException("서버에 연결할 수 없습니다. 연결 상태를 확인한 뒤 다시 시도해 주세요.", error)
+        }
+        throw error
+    }
 
     private fun request(path: String, profile: UserProfile, environment: ExerciseEnvironment): JSONObject {
         val host = if (BuildConfig.DEBUG && isAndroidEmulator()) {

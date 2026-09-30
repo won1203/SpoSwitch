@@ -43,7 +43,10 @@ internal object ProfileScreen {
 
         ui.gap(content, 26)
         ui.section(content, "내 운동 동네")
-        ui.add(content, ui.button(state.location, false, R.drawable.ic_location_on) { refreshWeather() }, top = 12)
-        ui.add(content, ui.text("기기의 현재 위치를 다시 확인하려면 위 버튼을 누르세요.", 12, ui.muted), top = 8)
+        ui.add(content, ui.button(state.location, false, R.drawable.ic_location_on) { chooseDistrict() }, top = 12)
+        ui.add(content, ui.text("누르면 서울 지역을 직접 고를 수 있어요.", 12, ui.muted), top = 8)
+        if (state.manualDistrict != null) {
+            ui.add(content, ui.button("기기의 현재 위치 사용", false, R.drawable.ic_near_me) { useDeviceLocation() }, top = 12)
+        }
     }
 }

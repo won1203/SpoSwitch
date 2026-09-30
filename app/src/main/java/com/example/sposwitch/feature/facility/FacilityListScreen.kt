@@ -89,16 +89,19 @@ private fun FeatureUiScope.goalFilter(): String? {
 
 /**
  * Renders location/loading/error states and returns the result once it is ready.
- * Uses the coordinates the weather card already resolved, so it follows GPS without its own location request.
+ * Uses the coordinates the weather card already resolved (device fix or picked district), not the weather
+ * response, so facilities still show when only the weather API fails.
  */
 internal fun FeatureUiScope.nearbyFacilities(environment: String?, goal: String? = null): NearbyFacilities? {
-    val weather = state.weather
-    if (weather == null) {
-        ui.add(content, ui.text("현재 위치를 확인하면 주변 시설을 보여드려요.", 14, ui.muted), top = 4)
+    val latitude = state.latitude
+    val longitude = state.longitude
+    if (latitude == null || longitude == null) {
+        ui.add(content, ui.text("현재 위치를 확인하거나 서울 지역을 고르면 주변 시설을 보여드려요.", 14, ui.muted), top = 4)
         ui.add(content, ui.button("현재 위치 확인", false, R.drawable.ic_near_me) { refreshWeather() }, top = 12)
+        ui.add(content, ui.button("서울 지역 직접 선택", false, R.drawable.ic_location_on) { chooseDistrict() }, top = 8)
         return null
     }
-    return when (val load = FacilityStore.nearby(this, weather.latitude, weather.longitude, environment, goal)) {
+    return when (val load = FacilityStore.nearby(this, latitude, longitude, environment, goal)) {
         FacilityStore.Load.Loading -> {
             val row = ui.row()
             row.addView(ProgressBar(activity).apply { contentDescription = "주변 시설 불러오는 중" })

@@ -12,6 +12,7 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.OnBackPressedCallback
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
@@ -23,6 +24,7 @@ import com.example.sposwitch.app.ExerciseLoadState
 import com.example.sposwitch.app.FeatureUiScope
 import com.example.sposwitch.app.WeatherLoadState
 import com.example.sposwitch.data.local.UserProfileRepository
+import com.example.sposwitch.domain.RecommendationPolicy
 import com.example.sposwitch.data.location.DeviceLocationProvider
 import com.example.sposwitch.data.remote.WeatherApiClient
 import com.example.sposwitch.data.remote.ExerciseApiClient
@@ -38,6 +40,7 @@ import com.example.sposwitch.feature.profile.ProfileSetupScreen
 import com.example.sposwitch.feature.weather.WeatherScreen
 import com.example.sposwitch.model.ExerciseEnvironment
 import com.example.sposwitch.model.ExerciseVideo
+import com.example.sposwitch.model.SeoulDistrict
 import com.example.sposwitch.ui.theme.MockUi
 
 /** Activity shell. Feature packages own screen rendering and the backend owns external API keys. */
@@ -62,6 +65,7 @@ class MainActivity : AppCompatActivity() {
         if (permissions.values.any { it }) {
             requestDeviceLocation()
         } else {
+            state.location = "위치 권한 필요"
             showWeatherError("현재 위치의 날씨를 표시하려면 위치 권한이 필요합니다.")
         }
     }
@@ -72,6 +76,7 @@ class MainActivity : AppCompatActivity() {
         ui = MockUi(this)
         userProfileRepository = UserProfileRepository(this)
         state = AppState.from(savedInstanceState, userProfileRepository.load())
+        state.manualDistrict = userProfileRepository.loadDistrict()
         deviceLocationProvider = DeviceLocationProvider(this)
         weatherApiClient = WeatherApiClient()
         exerciseApiClient = ExerciseApiClient()
@@ -147,6 +152,10 @@ class MainActivity : AppCompatActivity() {
 
     private fun loadExerciseTabIfNeeded() {
         if (!state.profile.isComplete) return
+        // Opening the tab directly (not from a home card) should follow today's pick, not the OUTDOOR default.
+        if (state.exerciseLoadState == ExerciseLoadState.IDLE && state.planLoadState == ExerciseLoadState.IDLE) {
+            state.prescriptionEnvironment = RecommendationPolicy.recommend(state.profile, state.weather).primaryEnvironment
+        }
         when (route) {
             AppRoute.PRESCRIPTION -> if (state.exerciseLoadState == ExerciseLoadState.IDLE) refreshPrescription()
             AppRoute.PLAN -> if (state.planLoadState == ExerciseLoadState.IDLE) refreshPlan()
@@ -178,6 +187,8 @@ class MainActivity : AppCompatActivity() {
             renderAction = ::render,
             prescriptionAction = ::openPrescription,
             weatherRefreshAction = ::refreshWeather,
+            districtChooseAction = ::chooseDistrict,
+            deviceLocationAction = ::useDeviceLocation,
             profileSaveAction = ::saveProfile,
             prescriptionRefreshAction = ::refreshPrescription,
             planRefreshAction = ::refreshPlan,
@@ -351,7 +362,10 @@ class MainActivity : AppCompatActivity() {
         state.weatherError = null
         render()
 
-        if (hasFineLocation || hasCoarseLocation) {
+        val district = SeoulDistrict.find(state.manualDistrict)
+        if (district != null) {
+            loadWeatherAt(district.latitude, district.longitude, ++weatherRequestId, district.label)
+        } else if (hasFineLocation || hasCoarseLocation) {
             requestDeviceLocation()
         } else {
             locationPermissionLauncher.launch(
@@ -370,31 +384,64 @@ class MainActivity : AppCompatActivity() {
             locationResult.fold(
                 onSuccess = { location ->
                     state.location = "현재 위치 확인됨"
-                    render()
-                    weatherApiClient.getCurrentLocationName(location.latitude, location.longitude) { nameResult ->
-                        if (requestId != weatherRequestId) return@getCurrentLocationName
-                        nameResult.onSuccess { name ->
-                            state.location = name
-                            render()
-                        }
-                    }
-                    weatherApiClient.getCurrentWeather(location.latitude, location.longitude) { weatherResult ->
-                        if (requestId != weatherRequestId) return@getCurrentWeather
-                        weatherResult.fold(
-                            onSuccess = { weather ->
-                                state.weather = weather
-                                state.location = weather.location
-                                state.weatherLoadState = WeatherLoadState.READY
-                                state.weatherError = null
-                                render()
-                            },
-                            onFailure = { showWeatherError(it.message ?: "날씨 정보를 불러오지 못했습니다.") },
-                        )
-                    }
+                    loadWeatherAt(location.latitude, location.longitude, requestId)
                 },
-                onFailure = { showWeatherError(it.message ?: "현재 위치를 확인하지 못했습니다.") },
+                onFailure = {
+                    state.location = "위치를 확인하지 못함"
+                    showWeatherError(it.message ?: "현재 위치를 확인하지 못했습니다.")
+                },
             )
         }
+    }
+
+    /** [fixedLabel] is shown for a picked district; a device fix is named by reverse geocoding instead. */
+    private fun loadWeatherAt(latitude: Double, longitude: Double, requestId: Int, fixedLabel: String? = null) {
+        state.latitude = latitude
+        state.longitude = longitude
+        fixedLabel?.let { state.location = it }
+        render()
+        if (fixedLabel == null) {
+            weatherApiClient.getCurrentLocationName(latitude, longitude) { nameResult ->
+                if (requestId != weatherRequestId) return@getCurrentLocationName
+                nameResult.onSuccess { name ->
+                    state.location = name
+                    render()
+                }
+            }
+        }
+        weatherApiClient.getCurrentWeather(latitude, longitude) { weatherResult ->
+            if (requestId != weatherRequestId) return@getCurrentWeather
+            weatherResult.fold(
+                onSuccess = { weather ->
+                    state.weather = weather
+                    state.location = fixedLabel ?: weather.location
+                    state.weatherLoadState = WeatherLoadState.READY
+                    state.weatherError = null
+                    render()
+                },
+                onFailure = { showWeatherError(it.message ?: "날씨 정보를 불러오지 못했습니다.") },
+            )
+        }
+    }
+
+    private fun chooseDistrict() {
+        val districts = SeoulDistrict.all
+        AlertDialog.Builder(this)
+            .setTitle("서울 지역 선택")
+            .setItems(districts.map { it.name }.toTypedArray()) { _, index ->
+                state.manualDistrict = districts[index].name
+                userProfileRepository.saveDistrict(state.manualDistrict)
+                refreshWeather()
+            }
+            .setNegativeButton("취소", null)
+            .show()
+    }
+
+    private fun useDeviceLocation() {
+        state.manualDistrict = null
+        userProfileRepository.saveDistrict(null)
+        state.location = "현재 위치 확인 중"
+        refreshWeather()
     }
 
     private fun showWeatherError(message: String) {
