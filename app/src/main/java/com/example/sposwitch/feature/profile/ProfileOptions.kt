@@ -2,10 +2,11 @@ package com.example.sposwitch.feature.profile
 
 import com.example.sposwitch.model.ExerciseEquipment
 import com.example.sposwitch.model.ExercisePlacePreference
+import com.example.sposwitch.model.UserProfile
 
 internal object ProfileOptions {
     val goals = listOf("근력 및 근육 강화", "체지방 감소", "유연성 및 자세 개선", "기초 체력 향상")
-    val ages = listOf("10대", "20대", "30대", "40대", "50대", "60대 이상")
+    val ages = UserProfile.SUPPORTED_AGES
     val fitnessLevels = listOf("초급", "중급", "고급")
     val exercisePlaces = ExercisePlacePreference.entries.map { it.label }
     val equipmentOptions = ExerciseEquipment.entries.map { it.label }

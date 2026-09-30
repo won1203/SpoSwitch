@@ -65,7 +65,7 @@ internal data class AppState(
 
     companion object {
         fun from(bundle: Bundle?, persistedProfile: UserProfile = UserProfile()): AppState {
-            if (bundle == null) return AppState(profile = persistedProfile)
+            if (bundle == null) return AppState(profile = persistedProfile.validatedForAge())
             val restoredProfile = persistedProfile.copy(
                 age = bundle.getString("age", persistedProfile.age),
                 fitnessLevel = bundle.getString("fitnessLevel", persistedProfile.fitnessLevel),
@@ -79,7 +79,7 @@ internal data class AppState(
                     persistedProfile.equipment,
                 ),
                 isComplete = bundle.getBoolean("profileComplete", persistedProfile.isComplete),
-            )
+            ).validatedForAge()
             val restoredEnvironment = bundle.getString("routineEnvironment")
                 ?.let { stored -> ExerciseEnvironment.entries.firstOrNull { it.name == stored } }
                 ?: if (bundle.getBoolean("routineIndoor")) {
@@ -91,7 +91,7 @@ internal data class AppState(
                 profile = restoredProfile,
                 facilityFilter = bundle.getString("filter", "전체"),
                 location = bundle.getString("location", "현재 위치 확인 중"),
-                profileStep = bundle.getInt("step").coerceIn(0, 3),
+                profileStep = if (restoredProfile.hasSupportedAge) bundle.getInt("step").coerceIn(0, 3) else 0,
                 selectedFacility = bundle.getInt("facility"),
                 prescriptionEnvironment = restoredEnvironment,
                 prescriptionComplete = bundle.getBoolean("routineComplete"),

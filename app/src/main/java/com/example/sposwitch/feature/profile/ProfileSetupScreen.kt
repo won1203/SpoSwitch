@@ -11,6 +11,7 @@ import com.example.sposwitch.ui.component.choiceChips
 
 internal object ProfileSetupScreen {
     fun render(scope: FeatureUiScope) = with(scope) {
+        if (!state.profile.hasSupportedAge) state.profileStep = 0
         ui.add(content, ui.text("${state.profileStep + 1} / 4  ·  맞춤 운동 처방 설정", 13, ui.accent, true))
         val progress = ProgressBar(activity, null, android.R.attr.progressBarStyleHorizontal).apply {
             max = 4
@@ -32,6 +33,9 @@ internal object ProfileSetupScreen {
     private fun FeatureUiScope.renderAge() {
         ui.add(content, ui.text("연령대를\n선택해 주세요", 28, bold = true))
         ui.add(content, ui.text("현재 연령대에 맞는 운동을 찾는 기준이에요.", 14, ui.muted), top = 12)
+        if (!state.profile.hasSupportedAge) {
+            ui.add(content, ui.text("운동 계획서를 이용하려면 연령대를 다시 선택해 주세요.", 13, ui.accent), top = 12)
+        }
         ui.gap(content, 28)
         ui.section(content, "연령대")
         ui.gap(content, 12)
@@ -40,8 +44,13 @@ internal object ProfileSetupScreen {
             rerender()
         }
         ui.add(content, ui.button("체력 수준 선택하기") {
-            state.profileStep = 1
-            rerender()
+            if (state.profile.hasSupportedAge) {
+                state.profileStep = 1
+                rerender()
+            }
+        }.apply {
+            isEnabled = state.profile.hasSupportedAge
+            alpha = if (isEnabled) 1f else 0.5f
         }, top = 32)
     }
 
