@@ -26,7 +26,6 @@ internal data class AppState(
     var weatherError: String? = null,
     var facilityFilter: String = "전체",
     var location: String = "현재 위치 확인 중",
-    var notificationsEnabled: Boolean = true,
     var profileStep: Int = 0,
     var selectedFacility: Int = 0,
     var prescriptionEnvironment: ExerciseEnvironment = ExerciseEnvironment.OUTDOOR,
@@ -50,7 +49,6 @@ internal data class AppState(
         putString("equipment", profile.equipment.name)
         putBoolean("profileComplete", profile.isComplete)
         putString("location", location)
-        putBoolean("notificationsEnabled", notificationsEnabled)
         putInt("step", profileStep)
         putInt("facility", selectedFacility)
         putString("routineEnvironment", prescriptionEnvironment.name)
@@ -88,7 +86,6 @@ internal data class AppState(
                 profile = restoredProfile,
                 facilityFilter = bundle.getString("filter", "전체"),
                 location = bundle.getString("location", "현재 위치 확인 중"),
-                notificationsEnabled = bundle.getBoolean("notificationsEnabled", true),
                 profileStep = bundle.getInt("step").coerceIn(0, 3),
                 selectedFacility = bundle.getInt("facility"),
                 prescriptionEnvironment = restoredEnvironment,

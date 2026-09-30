@@ -6,7 +6,6 @@ import com.example.sposwitch.app.FeatureUiScope
 import com.example.sposwitch.domain.RecommendationPolicy
 import com.example.sposwitch.model.ExercisePlacePreference
 import com.example.sposwitch.ui.component.profileSetupCard
-import com.example.sposwitch.ui.component.settingToggle
 import com.example.sposwitch.ui.component.summaryRow
 
 internal object ProfileScreen {
@@ -46,8 +45,5 @@ internal object ProfileScreen {
         ui.section(content, "내 운동 동네")
         ui.add(content, ui.button(state.location, false, R.drawable.ic_location_on) { refreshWeather() }, top = 12)
         ui.add(content, ui.text("기기의 현재 위치를 다시 확인하려면 위 버튼을 누르세요.", 12, ui.muted), top = 8)
-        ui.gap(content, 20)
-        settingToggle("날씨 변화 알림", state.notificationsEnabled) { state.notificationsEnabled = it }
-        ui.add(content, ui.text("목업 설정이며 기기 알림 권한은 변경하지 않습니다.", 12, ui.muted), top = 8)
     }
 }
