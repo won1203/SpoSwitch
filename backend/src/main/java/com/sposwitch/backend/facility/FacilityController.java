@@ -40,9 +40,12 @@ public class FacilityController {
     @GetMapping("/{id}")
     public Facility detail(
             @PathVariable String id,
-            @RequestParam(required = false) Double latitude,
-            @RequestParam(required = false) Double longitude
+            @RequestParam(required = false) @DecimalMin("-90.0") @DecimalMax("90.0") Double latitude,
+            @RequestParam(required = false) @DecimalMin("-180.0") @DecimalMax("180.0") Double longitude
     ) {
+        if ((latitude == null) != (longitude == null)) {
+            throw new IllegalArgumentException("거리 계산에는 latitude와 longitude를 함께 입력해야 합니다.");
+        }
         Facility facility = catalog.find(id)
                 .orElseThrow(() -> new IllegalArgumentException("시설을 찾을 수 없습니다."));
         return latitude == null || longitude == null ? facility : facility.atDistanceFrom(latitude, longitude);

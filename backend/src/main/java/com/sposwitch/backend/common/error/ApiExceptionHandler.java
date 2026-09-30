@@ -6,6 +6,7 @@ import jakarta.validation.Path;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.Map;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -48,7 +49,14 @@ public class ApiExceptionHandler {
 
     @ExceptionHandler(ResponseStatusException.class)
     ResponseEntity<Map<String, Object>> handleStatus(ResponseStatusException exception) {
-        return error(HttpStatus.valueOf(exception.getStatusCode().value()), exception.getReason());
+        HttpStatus status = HttpStatus.valueOf(exception.getStatusCode().value());
+        ResponseEntity<Map<String, Object>> response = error(status, exception.getReason());
+        if (status == HttpStatus.SERVICE_UNAVAILABLE) {
+            return ResponseEntity.status(status)
+                    .header(HttpHeaders.RETRY_AFTER, "5")
+                    .body(response.getBody());
+        }
+        return response;
     }
 
     @ExceptionHandler(MissingServletRequestParameterException.class)
@@ -69,7 +77,7 @@ public class ApiExceptionHandler {
                 "timestamp", OffsetDateTime.now(ZoneOffset.UTC).toString(),
                 "status", status.value(),
                 "error", status.getReasonPhrase(),
-                "message", message
+                "message", message == null || message.isBlank() ? status.getReasonPhrase() : message
         ));
     }
 }
