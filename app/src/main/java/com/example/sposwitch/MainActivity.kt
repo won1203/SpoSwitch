@@ -233,7 +233,7 @@ class MainActivity : AppCompatActivity() {
             },
             LinearLayout.LayoutParams(0, -2, 1f),
         )
-        top.addView(ui.iconButton(R.drawable.ic_notifications, "현재 날씨 보기") {
+        top.addView(ui.iconButton(R.drawable.ic_sunny, "현재 날씨 보기") {
             navigate(AppRoute.WEATHER)
         })
         ui.add(root, top, 60)

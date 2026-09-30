@@ -10,7 +10,6 @@ import com.example.sposwitch.app.AppRoute
 import com.example.sposwitch.app.FeatureUiScope
 import com.example.sposwitch.app.WeatherLoadState
 import com.example.sposwitch.model.ExerciseEnvironment
-import com.google.android.material.materialswitch.MaterialSwitch
 
 internal fun FeatureUiScope.weatherCard() {
     val box = ui.column().apply {
@@ -142,15 +141,4 @@ internal fun FeatureUiScope.summaryRow(parent: LinearLayout, label: String, valu
     row.addView(ui.text(label, 13, ui.muted), LinearLayout.LayoutParams(0, -2, 1f))
     row.addView(ui.text(value, 15, ui.green, true))
     ui.add(parent, row)
-}
-
-internal fun FeatureUiScope.settingToggle(label: String, checked: Boolean, action: (Boolean) -> Unit) {
-    ui.add(content, MaterialSwitch(activity).apply {
-        text = label
-        textSize = 16f
-        setTextColor(ui.green)
-        isChecked = checked
-        minimumHeight = ui.dp(52)
-        setOnCheckedChangeListener { _, value -> action(value) }
-    })
 }

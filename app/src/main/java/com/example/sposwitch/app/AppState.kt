@@ -31,7 +31,6 @@ internal data class AppState(
     var longitude: Double? = null,
     /** Seoul district chosen by hand; while set, weather and facilities use it instead of device location. */
     var manualDistrict: String? = null,
-    var notificationsEnabled: Boolean = true,
     var profileStep: Int = 0,
     var selectedFacility: Int = 0,
     var prescriptionEnvironment: ExerciseEnvironment = ExerciseEnvironment.OUTDOOR,
@@ -55,7 +54,6 @@ internal data class AppState(
         putString("equipment", profile.equipment.name)
         putBoolean("profileComplete", profile.isComplete)
         putString("location", location)
-        putBoolean("notificationsEnabled", notificationsEnabled)
         putInt("step", profileStep)
         putInt("facility", selectedFacility)
         putString("routineEnvironment", prescriptionEnvironment.name)
@@ -93,7 +91,6 @@ internal data class AppState(
                 profile = restoredProfile,
                 facilityFilter = bundle.getString("filter", "전체"),
                 location = bundle.getString("location", "현재 위치 확인 중"),
-                notificationsEnabled = bundle.getBoolean("notificationsEnabled", true),
                 profileStep = bundle.getInt("step").coerceIn(0, 3),
                 selectedFacility = bundle.getInt("facility"),
                 prescriptionEnvironment = restoredEnvironment,

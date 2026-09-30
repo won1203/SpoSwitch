@@ -50,11 +50,21 @@ internal object HomeScreen {
             })
         }
         ui.add(content, summary)
+
+        // Why today's picks look the way they do comes first; a weather switch opens the switch screen.
+        val recommendation = RecommendationPolicy.recommend(profile, state.weather)
+        val switched = recommendation.reason == RecommendationReason.WEATHER_RISK
+        ui.gap(content, 12)
+        ui.note(
+            content,
+            recommendationMessage(recommendation) + if (switched) " 실내 운동 장소 보기 →" else "",
+            state.weather?.icon ?: R.drawable.ic_sunny,
+        ) { navigate(if (switched) AppRoute.WEATHER_SWITCH else AppRoute.WEATHER) }
+
         ui.gap(content, 20)
         ui.add(content, ui.text("오늘의 맞춤 운동", 25, bold = true))
         ui.add(content, ui.text("${profile.goal}에 맞는 국민체력100 운동 영상을 찾아요.", 13, ui.muted), top = 8)
 
-        val recommendation = RecommendationPolicy.recommend(profile, state.weather)
         recommendation.environments.forEachIndexed { index, environment ->
             ui.gap(content, if (index == 0) 14 else 20)
             exerciseHero(environment)
@@ -66,6 +76,8 @@ internal object HomeScreen {
         val facilityEnvironments = recommendation.environments.filter {
             it == ExerciseEnvironment.INDOOR_FACILITY || it == ExerciseEnvironment.OUTDOOR
         }
+        // Indoor+outdoor facilities match both lists; show each one only once on home.
+        val shown = mutableSetOf<String>()
         facilityEnvironments.forEach { facilityEnvironment ->
             val indoor = facilityEnvironment == ExerciseEnvironment.INDOOR_FACILITY
             ui.gap(content, 20)
@@ -74,20 +86,13 @@ internal object HomeScreen {
                 FacilityStore.filterTouched = true
                 navigate(AppRoute.FACILITIES)
             }
-            homeFacilityPreview(indoor)
+            homeFacilityPreview(indoor, shown)
             ui.divider(content, 8)
         }
-
-        ui.gap(content, 10)
-        ui.note(
-            content,
-            recommendationMessage(recommendation),
-            state.weather?.icon ?: R.drawable.ic_sunny,
-        ) { navigate(AppRoute.WEATHER) }
     }
 
     /** Same nearby-facility data as the facility tab, trimmed to the closest few for the home card. */
-    private fun FeatureUiScope.homeFacilityPreview(indoor: Boolean) {
+    private fun FeatureUiScope.homeFacilityPreview(indoor: Boolean, shown: MutableSet<String>) {
         val profile = state.profile
         val goal = if (profile.isComplete && FacilityStore.goalOnly) {
             FacilityStore.goalToCode(profile.goal)
@@ -95,12 +100,16 @@ internal object HomeScreen {
             null
         }
         val result = nearbyFacilities(if (indoor) "INDOOR" else "OUTDOOR", goal) ?: return
-        if (result.items.isEmpty()) {
+        val preview = result.items.filter { it.id !in shown }.take(HOME_PREVIEW)
+        if (preview.isEmpty()) {
             val place = if (indoor) "실내" else "야외"
             ui.add(content, ui.text("반경 3km 안에 조건에 맞는 $place 시설이 없어요.", 14, ui.muted), top = 8)
             return
         }
-        result.items.take(HOME_PREVIEW).forEach { nearbyFacilityRow(it) }
+        preview.forEach {
+            shown += it.id
+            nearbyFacilityRow(it)
+        }
     }
 
     private fun recommendationMessage(recommendation: ExerciseRecommendation): String =
