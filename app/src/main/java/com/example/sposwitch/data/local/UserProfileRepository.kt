@@ -18,7 +18,7 @@ internal class UserProfileRepository(context: Context) {
         placePreference = ExercisePlacePreference.fromStored(preferences.getString(KEY_PLACE, null)),
         equipment = ExerciseEquipment.fromStored(preferences.getString(KEY_EQUIPMENT, null)),
         isComplete = preferences.getBoolean(KEY_COMPLETE, false),
-    )
+    ).validatedForAge()
 
     fun save(profile: UserProfile) {
         preferences.edit()
@@ -27,7 +27,7 @@ internal class UserProfileRepository(context: Context) {
             .putString(KEY_GOAL, profile.goal)
             .putString(KEY_PLACE, profile.placePreference.name)
             .putString(KEY_EQUIPMENT, profile.equipment.name)
-            .putBoolean(KEY_COMPLETE, profile.isComplete)
+            .putBoolean(KEY_COMPLETE, profile.isComplete && profile.hasSupportedAge)
             .apply()
     }
 

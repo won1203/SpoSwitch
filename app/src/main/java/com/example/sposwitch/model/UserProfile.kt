@@ -31,4 +31,12 @@ internal data class UserProfile(
     val placePreference: ExercisePlacePreference = ExercisePlacePreference.WEATHER,
     val equipment: ExerciseEquipment = ExerciseEquipment.NONE,
     val isComplete: Boolean = false,
-)
+) {
+    val hasSupportedAge: Boolean get() = age in SUPPORTED_AGES
+
+    fun validatedForAge(): UserProfile = if (hasSupportedAge) this else copy(isComplete = false)
+
+    companion object {
+        val SUPPORTED_AGES = listOf("20대", "30대", "40대", "50대", "60대 이상")
+    }
+}
