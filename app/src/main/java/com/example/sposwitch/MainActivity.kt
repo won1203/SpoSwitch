@@ -3,8 +3,13 @@ package com.example.sposwitch
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.os.SystemClock
 import android.view.Gravity
 import android.view.WindowManager
@@ -59,9 +64,26 @@ class MainActivity : AppCompatActivity() {
     private var exerciseRequestId = 0
     private var planRequestId = 0
     private var lastWeatherRefreshAt = 0L
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private var isForeground = false
+    private var locationPermissionInFlight = false
+    private lateinit var connectivityManager: ConnectivityManager
+    private val networkCallback = object : ConnectivityManager.NetworkCallback() {
+        override fun onCapabilitiesChanged(network: Network, capabilities: NetworkCapabilities) {
+            if (!capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)) return
+            mainHandler.post {
+                if (isForeground && !isFinishing && !isDestroyed && state.profile.isComplete &&
+                    state.weatherLoadState == WeatherLoadState.ERROR && canLoadWeatherWithoutPrompt()
+                ) {
+                    refreshWeather()
+                }
+            }
+        }
+    }
     private val locationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
     ) { permissions ->
+        locationPermissionInFlight = false
         if (permissions.values.any { it }) {
             requestDeviceLocation()
         } else {
@@ -80,17 +102,41 @@ class MainActivity : AppCompatActivity() {
         deviceLocationProvider = DeviceLocationProvider(this)
         weatherApiClient = WeatherApiClient()
         exerciseApiClient = ExerciseApiClient()
-        route = AppRoute.fromKey(savedInstanceState?.getString("screen"))
-        history.addAll(savedInstanceState?.getStringArrayList("history").orEmpty().map(AppRoute::fromKey))
+        connectivityManager = getSystemService(ConnectivityManager::class.java)
+        route = if (state.profile.isComplete) {
+            AppRoute.fromKey(savedInstanceState?.getString("screen"))
+        } else {
+            AppRoute.PROFILE_SETUP
+        }
+        if (state.profile.isComplete) {
+            history.addAll(savedInstanceState?.getStringArrayList("history").orEmpty().map(AppRoute::fromKey))
+        }
         configureSystemBars()
         configureBackNavigation()
         render()
         loadExerciseTabIfNeeded()
     }
 
+    override fun onStart() {
+        super.onStart()
+        isForeground = true
+        connectivityManager.registerDefaultNetworkCallback(networkCallback)
+    }
+
+    override fun onStop() {
+        isForeground = false
+        connectivityManager.unregisterNetworkCallback(networkCallback)
+        super.onStop()
+    }
+
     override fun onResume() {
         super.onResume()
-        if (SystemClock.elapsedRealtime() - lastWeatherRefreshAt >= WEATHER_REFRESH_INTERVAL_MS) {
+        if (state.profile.isComplete && !locationPermissionInFlight &&
+            state.weatherLoadState != WeatherLoadState.LOADING &&
+            (state.weatherLoadState == WeatherLoadState.IDLE ||
+                (state.weatherLoadState == WeatherLoadState.ERROR && canLoadWeatherWithoutPrompt()) ||
+                SystemClock.elapsedRealtime() - lastWeatherRefreshAt >= WEATHER_REFRESH_INTERVAL_MS)
+        ) {
             refreshWeather()
         }
     }
@@ -123,11 +169,15 @@ class MainActivity : AppCompatActivity() {
     private fun configureBackNavigation() {
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
+                if (route == AppRoute.PROFILE_SETUP && state.profileStep == 0 && state.profile.isComplete) {
+                    state.profile = userProfileRepository.load()
+                }
                 when {
                     route == AppRoute.PROFILE_SETUP && state.profileStep > 0 -> {
                         state.profileStep--
                         render()
                     }
+                    !state.profile.isComplete -> finish()
                     history.isNotEmpty() -> {
                         route = history.removeAt(history.lastIndex)
                         render()
@@ -144,10 +194,16 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun navigate(destination: AppRoute, asTab: Boolean = false) {
+        if (!state.profile.isComplete && destination != AppRoute.PROFILE_SETUP) return
+        if (route == AppRoute.PROFILE_SETUP && destination != AppRoute.PROFILE_SETUP) {
+            // Setup edits are a draft until the final save button is pressed.
+            state.profile = userProfileRepository.load()
+        }
         if (asTab) history.clear() else if (route != destination) history.add(route)
         route = destination
         render()
         loadExerciseTabIfNeeded()
+        if (state.profile.isComplete && state.weatherLoadState == WeatherLoadState.IDLE) refreshWeather()
     }
 
     private fun loadExerciseTabIfNeeded() {
@@ -222,7 +278,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun renderTopBar() {
         val top = ui.row().apply { setPadding(ui.dp(12), ui.dp(4), ui.dp(12), 0) }
-        if (!route.isTopLevel) {
+        if (!route.isTopLevel && (state.profile.isComplete || state.profileStep > 0)) {
             top.addView(ui.iconButton(R.drawable.ic_arrow_back, "뒤로 가기") {
                 onBackPressedDispatcher.onBackPressed()
             })
@@ -233,9 +289,11 @@ class MainActivity : AppCompatActivity() {
             },
             LinearLayout.LayoutParams(0, -2, 1f),
         )
-        top.addView(ui.iconButton(R.drawable.ic_sunny, "현재 날씨 보기") {
-            navigate(AppRoute.WEATHER)
-        })
+        if (route != AppRoute.PROFILE_SETUP) {
+            top.addView(ui.iconButton(R.drawable.ic_sunny, "현재 날씨 보기") {
+                navigate(AppRoute.WEATHER)
+            })
+        }
         ui.add(root, top, 60)
     }
 
@@ -346,6 +404,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun refreshWeather() {
+        if (locationPermissionInFlight || isFinishing || isDestroyed) return
         lastWeatherRefreshAt = SystemClock.elapsedRealtime()
         weatherRequestId++
         deviceLocationProvider.cancel()
@@ -368,6 +427,7 @@ class MainActivity : AppCompatActivity() {
         } else if (hasFineLocation || hasCoarseLocation) {
             requestDeviceLocation()
         } else {
+            locationPermissionInFlight = true
             locationPermissionLauncher.launch(
                 arrayOf(
                     Manifest.permission.ACCESS_FINE_LOCATION,
@@ -393,6 +453,11 @@ class MainActivity : AppCompatActivity() {
             )
         }
     }
+
+    private fun canLoadWeatherWithoutPrompt(): Boolean =
+        SeoulDistrict.find(state.manualDistrict) != null ||
+            ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+            ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
 
     /** [fixedLabel] is shown for a picked district; a device fix is named by reverse geocoding instead. */
     private fun loadWeatherAt(latitude: Double, longitude: Double, requestId: Int, fixedLabel: String? = null) {

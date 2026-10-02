@@ -11,7 +11,12 @@ import com.example.sposwitch.ui.component.choiceChips
 
 internal object ProfileSetupScreen {
     fun render(scope: FeatureUiScope) = with(scope) {
-        if (!state.profile.hasSupportedAge) state.profileStep = 0
+        state.profileStep = when {
+            !state.profile.hasSupportedAge -> 0
+            state.profileStep > 1 && !state.profile.hasSupportedFitnessLevel -> 1
+            state.profileStep > 2 && !state.profile.hasSupportedGoal -> 2
+            else -> state.profileStep
+        }
         ui.add(content, ui.text("${state.profileStep + 1} / 4  ·  맞춤 운동 처방 설정", 13, ui.accent, true))
         val progress = ProgressBar(activity, null, android.R.attr.progressBarStyleHorizontal).apply {
             max = 4
@@ -33,7 +38,7 @@ internal object ProfileSetupScreen {
     private fun FeatureUiScope.renderAge() {
         ui.add(content, ui.text("연령대를\n선택해 주세요", 28, bold = true))
         ui.add(content, ui.text("현재 연령대에 맞는 운동을 찾는 기준이에요.", 14, ui.muted), top = 12)
-        if (!state.profile.hasSupportedAge) {
+        if (state.profile.age.isNotBlank() && !state.profile.hasSupportedAge) {
             ui.add(content, ui.text("운동 계획서를 이용하려면 연령대를 다시 선택해 주세요.", 13, ui.accent), top = 12)
         }
         ui.gap(content, 28)
@@ -73,8 +78,13 @@ internal object ProfileSetupScreen {
             ui.add(content, option, top = if (index == 0) 0 else 10)
         }
         ui.add(content, ui.button("운동 목적 선택하기") {
-            state.profileStep = 2
-            rerender()
+            if (state.profile.hasSupportedFitnessLevel) {
+                state.profileStep = 2
+                rerender()
+            }
+        }.apply {
+            isEnabled = state.profile.hasSupportedFitnessLevel
+            alpha = if (isEnabled) 1f else 0.5f
         }, top = 28)
     }
 
@@ -89,8 +99,13 @@ internal object ProfileSetupScreen {
             rerender()
         }
         ui.add(content, ui.button("운동 환경 선택하기") {
-            state.profileStep = 3
-            rerender()
+            if (state.profile.hasSupportedGoal) {
+                state.profileStep = 3
+                rerender()
+            }
+        }.apply {
+            isEnabled = state.profile.hasSupportedGoal
+            alpha = if (isEnabled) 1f else 0.5f
         }, top = 26)
     }
 
@@ -123,12 +138,16 @@ internal object ProfileSetupScreen {
             }
         }
         ui.add(content, ui.button("맞춤 처방 확인하기") {
+            if (!state.profile.hasRequiredSelections) return@button
             state.profile = state.profile.copy(isComplete = true)
             saveProfile()
             state.prescriptionEnvironment = RecommendationPolicy
                 .recommend(state.profile, state.weather)
                 .primaryEnvironment
             navigate(AppRoute.HOME, asTab = true)
+        }.apply {
+            isEnabled = state.profile.hasRequiredSelections
+            alpha = if (isEnabled) 1f else 0.5f
         }, top = 26)
     }
 }

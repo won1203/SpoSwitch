@@ -18,7 +18,7 @@ internal object RecommendationPolicy {
             ExercisePlacePreference.HOME -> userChoice(ExerciseEnvironment.HOME)
             ExercisePlacePreference.INDOOR_FACILITY -> userChoice(ExerciseEnvironment.INDOOR_FACILITY)
             ExercisePlacePreference.OUTDOOR -> userChoice(ExerciseEnvironment.OUTDOOR)
-            ExercisePlacePreference.WEATHER -> weatherRecommendation(weather)
+            ExercisePlacePreference.WEATHER, ExercisePlacePreference.UNSELECTED -> weatherRecommendation(weather)
         }
 
     fun weatherRisks(weather: CurrentWeather): List<String> = buildList {

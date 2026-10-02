@@ -6,8 +6,6 @@
    See https://developer.android.com/about/versions/12/backup-restore
 -->
 <full-backup-content>
-    <!--
-   <include domain="sharedpref" path="."/>
-   <exclude domain="sharedpref" path="device.xml"/>
--->
+    <!-- A reinstall starts profile setup again; normal app restarts keep local preferences. -->
+    <exclude domain="sharedpref" path="user_exercise_profile.xml" />
 </full-backup-content>

@@ -9,12 +9,13 @@ import java.net.HttpURLConnection
 import java.io.IOException
 import java.net.URL
 import java.util.concurrent.Executors
+import javax.net.ssl.SSLException
 import org.json.JSONObject
 
 internal class WeatherApiClient(
     private val baseUrl: String = BuildConfig.BACKEND_BASE_URL,
 ) {
-    private val executor = Executors.newSingleThreadExecutor()
+    private val executor = Executors.newFixedThreadPool(2)
     private val mainHandler = Handler(Looper.getMainLooper())
     private val requestBaseUrl = if (BuildConfig.DEBUG && isAndroidEmulator()) {
         emulatorLocalBaseUrl(baseUrl)
@@ -29,28 +30,8 @@ internal class WeatherApiClient(
     ) {
         executor.execute {
             val result = runCatching {
-                val endpoint = requestBaseUrl.trimEnd('/') +
-                    "/api/v1/weather/current?latitude=$latitude&longitude=$longitude"
-                val connection = (URL(endpoint).openConnection() as HttpURLConnection).apply {
-                    requestMethod = "GET"
-                    connectTimeout = 7_000
-                    readTimeout = 10_000
-                    setRequestProperty("Accept", "application/json")
-                }
-                try {
-                    val status = connection.responseCode
-                    val responseBody = (if (status in 200..299) connection.inputStream else connection.errorStream)
-                        ?.bufferedReader()
-                        ?.use { it.readText() }
-                        .orEmpty()
-                    if (status !in 200..299) {
-                        val message = runCatching { JSONObject(responseBody).optString("message") }.getOrNull()
-                        throw IllegalStateException(message?.takeIf(String::isNotBlank) ?: "서버 응답 오류($status)")
-                    }
-                    parseWeather(JSONObject(responseBody))
-                } finally {
-                    connection.disconnect()
-                }
+                // A cold backend can call Kakao, KMA and AirKorea before returning weather.
+                parseWeather(requestJson("current", latitude, longitude, 60_000))
             }
             val displayResult = result.recoverCatching { error ->
                 if (error is IOException) {
@@ -69,22 +50,7 @@ internal class WeatherApiClient(
     ) {
         executor.execute {
             val result = runCatching {
-                val endpoint = requestBaseUrl.trimEnd('/') +
-                    "/api/v1/weather/location?latitude=$latitude&longitude=$longitude"
-                val connection = (URL(endpoint).openConnection() as HttpURLConnection).apply {
-                    requestMethod = "GET"
-                    connectTimeout = 7_000
-                    readTimeout = 10_000
-                    setRequestProperty("Accept", "application/json")
-                }
-                try {
-                    val status = connection.responseCode
-                    if (status !in 200..299) error("위치 이름을 불러오지 못했습니다. ($status)")
-                    JSONObject(connection.inputStream.bufferedReader().use { it.readText() })
-                        .getString("location")
-                } finally {
-                    connection.disconnect()
-                }
+                requestJson("location", latitude, longitude, 10_000).getString("location")
             }
             mainHandler.post { callback(result) }
         }
@@ -93,6 +59,45 @@ internal class WeatherApiClient(
     fun close() {
         executor.shutdownNow()
     }
+
+    private fun requestJson(path: String, latitude: Double, longitude: Double, readTimeoutMs: Int): JSONObject {
+        val endpoint = requestBaseUrl.trimEnd('/') +
+            "/api/v1/weather/$path?latitude=$latitude&longitude=$longitude"
+        for (attempt in 0..1) {
+            try {
+                val connection = (URL(endpoint).openConnection() as HttpURLConnection).apply {
+                    requestMethod = "GET"
+                    connectTimeout = 7_000
+                    readTimeout = readTimeoutMs
+                    setRequestProperty("Accept", "application/json")
+                }
+                try {
+                    val status = connection.responseCode
+                    val body = (if (status in 200..299) connection.inputStream else connection.errorStream)
+                        ?.bufferedReader()?.use { it.readText() }.orEmpty()
+                    if (status !in 200..299) {
+                        val message = runCatching { JSONObject(body).optString("message") }.getOrNull()
+                        throw WeatherResponseException(status,
+                            message?.takeIf(String::isNotBlank) ?: "서버 응답 오류($status)")
+                    }
+                    return JSONObject(body)
+                } finally {
+                    connection.disconnect()
+                }
+            } catch (error: Exception) {
+                val retryable = when (error) {
+                    is WeatherResponseException -> error.status in setOf(408, 502, 503, 504)
+                    is IOException -> error !is SSLException
+                    else -> false
+                }
+                if (!retryable || attempt == 1 || Thread.currentThread().isInterrupted) throw error
+                Thread.sleep(1_000)
+            }
+        }
+        error("Weather request did not complete")
+    }
+
+    private class WeatherResponseException(val status: Int, message: String) : IllegalStateException(message)
 
     private fun parseWeather(json: JSONObject): CurrentWeather {
         val air = json.optJSONObject("airQuality")

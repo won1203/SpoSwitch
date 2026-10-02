@@ -38,8 +38,6 @@ class ProfileAgeSelectionTest {
         }) as MainActivity
         try {
             instrumentation.runOnMainSync {
-                find(activity.window.decorView) { it.contentDescription == "계획서" }.performClick()
-                find(activity.window.decorView) { it.contentDescription == "내 상태 입력하기" }.performClick()
                 val root = activity.window.decorView
                 assertFalse(walk(root).any { it is TextView && it.text == "10대" })
                 assertFalse(find(root) { it.contentDescription == "체력 수준 선택하기" }.isEnabled)
@@ -58,6 +56,8 @@ class ProfileAgeSelectionTest {
         val bundle = Bundle().apply {
             putString("age", "10대")
             putString("fitnessLevel", "중급")
+            putString("goal", "체지방 감소")
+            putString("exercisePlace", "WEATHER")
             putBoolean("profileComplete", true)
             putInt("step", 3)
         }
@@ -80,12 +80,14 @@ class ProfileAgeSelectionTest {
         assertFalse(preferences.getBoolean("complete", true))
         assertFalse(repository.load().isComplete)
 
-        repository.save(UserProfile(age = "20대", fitnessLevel = "중급", isComplete = true))
+        repository.save(UserProfile(age = "20대", fitnessLevel = "중급", goal = "체지방 감소",
+            placePreference = com.example.sposwitch.model.ExercisePlacePreference.WEATHER, isComplete = true))
         assertTrue(repository.load().isComplete)
         assertEquals("20대", repository.load().age)
         assertEquals("중급", repository.load().fitnessLevel)
 
-        repository.save(UserProfile(age = "60대 이상", isComplete = true))
+        repository.save(UserProfile(age = "60대 이상", fitnessLevel = "초급", goal = "기초 체력 향상",
+            placePreference = com.example.sposwitch.model.ExercisePlacePreference.WEATHER, isComplete = true))
         assertTrue(repository.load().isComplete)
     }
 

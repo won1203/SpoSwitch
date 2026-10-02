@@ -60,8 +60,18 @@ internal class DeviceLocationProvider(context: Context) {
             )
         }
 
+        // A recent device fix is usable immediately while location providers warm up on launch.
+        val recent = providers
+            .mapNotNull { runCatching { locationManager.getLastKnownLocation(it) }.getOrNull() }
+            .filter(::isRecent)
+            .maxByOrNull { it.elapsedRealtimeNanos }
+        if (recent != null) {
+            finish(Result.success(recent))
+            return
+        }
+
         timeout = Runnable { if (currentRequest == requestId) finishWithRecentLocation() }
-            .also { handler.postDelayed(it, 20_000L) }
+            .also { handler.postDelayed(it, 30_000L) }
 
         // Request both sources: an enabled network provider may never produce a fix.
         var pending = providers.size

@@ -12,13 +12,13 @@ internal class UserProfileRepository(context: Context) {
     )
 
     fun load(): UserProfile = UserProfile(
-        age = preferences.getString(KEY_AGE, null) ?: "30대",
-        fitnessLevel = preferences.getString(KEY_FITNESS_LEVEL, null) ?: "초급",
-        goal = preferences.getString(KEY_GOAL, null) ?: "근력 및 근육 강화",
+        age = preferences.getString(KEY_AGE, null).orEmpty(),
+        fitnessLevel = preferences.getString(KEY_FITNESS_LEVEL, null).orEmpty(),
+        goal = preferences.getString(KEY_GOAL, null).orEmpty(),
         placePreference = ExercisePlacePreference.fromStored(preferences.getString(KEY_PLACE, null)),
         equipment = ExerciseEquipment.fromStored(preferences.getString(KEY_EQUIPMENT, null)),
         isComplete = preferences.getBoolean(KEY_COMPLETE, false),
-    ).validatedForAge()
+    ).validated()
 
     fun save(profile: UserProfile) {
         preferences.edit()
@@ -27,7 +27,7 @@ internal class UserProfileRepository(context: Context) {
             .putString(KEY_GOAL, profile.goal)
             .putString(KEY_PLACE, profile.placePreference.name)
             .putString(KEY_EQUIPMENT, profile.equipment.name)
-            .putBoolean(KEY_COMPLETE, profile.isComplete && profile.hasSupportedAge)
+            .putBoolean(KEY_COMPLETE, profile.isComplete && profile.hasRequiredSelections)
             .apply()
     }
 
